@@ -80,24 +80,24 @@ describe("ids", () => {
             const op1: OperationId = [clientId1, 5];
             const op2: OperationId = [clientId2, 10];
 
-            assert.strictEqual(compareOperationId(op1, op2), 1);
+            assert.strictEqual(compareOperationId(op1, op2), -1);
         });
 
-        test("compareOperationId returns 0 when first counter is larger", () => {
+        test("compareOperationId returns -1 when first counter is larger", () => {
             const clientId1 = generateClientId();
             const clientId2 = generateClientId();
             const op1: OperationId = [clientId1, 10];
             const op2: OperationId = [clientId2, 5];
 
-            assert.strictEqual(compareOperationId(op1, op2), 0);
+            assert.strictEqual(compareOperationId(op1, op2), 1);
         });
 
-        test("compareOperationId uses clientId when counters are equal (smaller clientId yields 1)", () => {
+        test("compareOperationId uses clientId when counters are equal (lexicographic, inverted)", () => {
             const op1: OperationId = ["a-client-id", 5];
             const op2: OperationId = ["b-client-id", 5];
 
-            assert.strictEqual(compareOperationId(op1, op2), 1);
-            assert.strictEqual(compareOperationId(op2, op1), 0);
+            assert.strictEqual(compareOperationId(op1, op2), -1);
+            assert.strictEqual(compareOperationId(op2, op1), 1);
         });
 
         test("compareOperationId returns 0 when both ids are identical", () => {
@@ -114,16 +114,16 @@ describe("ids", () => {
             const op1: OperationId = [clientId1, 0];
             const op2: OperationId = [clientId2, 1];
 
-            assert.strictEqual(compareOperationId(op1, op2), 1);
+            assert.strictEqual(compareOperationId(op1, op2), -1);
         });
 
-        test("compareOperationId returns 0 when first counter is larger at large magnitudes", () => {
+        test("compareOperationId returns -1 when first counter is larger at large magnitudes", () => {
             const clientId1 = generateClientId();
             const clientId2 = generateClientId();
             const op1: OperationId = [clientId1, 1000];
             const op2: OperationId = [clientId2, 999];
 
-            assert.strictEqual(compareOperationId(op1, op2), 0);
+            assert.strictEqual(compareOperationId(op1, op2), 1);
         });
     });
 });

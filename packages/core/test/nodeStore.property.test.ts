@@ -37,6 +37,70 @@ function runPermutation(ops: StoreOp[], order: number[]): string {
   return getText(store);
 }
 
+function runPermutationPrefix(
+  ops: StoreOp[],
+  order: number[],
+  len: number,
+): string {
+  const store = makeStore();
+  for (let i = 0; i < len; i++) applyOp(store, ops[order[i]!]!);
+  return getText(store);
+}
+
+function formatOp(op: StoreOp, idx: number): string {
+  if (op.type === "insert") {
+    return `[${idx}] INSERT id=:${op.id[1]} val="${op.value}" left=:${op.leftOrigin[1]} right=${op.rightOrigin ? ":" + op.rightOrigin[1] : "null"}`;
+  }
+  return `[${idx}] DELETE target=:${op.target[1]}`;
+}
+
+function firstDivergenceStep(
+  ops: StoreOp[],
+  order1: number[],
+  order2: number[],
+): number {
+  for (let k = 1; k <= ops.length; k++) {
+    if (
+      runPermutationPrefix(ops, order1, k) !==
+      runPermutationPrefix(ops, order2, k)
+    ) {
+      return k;
+    }
+  }
+  return ops.length;
+}
+
+function formatDivergenceBlock(
+  ops: StoreOp[],
+  order1: number[],
+  order2: number[],
+  t1: string,
+  t2: string,
+): string {
+  const k = firstDivergenceStep(ops, order1, order2);
+  const textBefore = k > 1 ? runPermutationPrefix(ops, order1, k - 1) : "";
+  const i1 = order1[k - 1]!;
+  const i2 = order2[k - 1]!;
+  const lines: string[] = [
+    `=== DIVERGENCE at step ${k}/${ops.length} (first differing prefix) ===`,
+  ];
+  if (k > 1) {
+    lines.push(`After ${k - 1} ops (same text): "${textBefore}"`);
+  }
+  lines.push(`  step ${k}:`);
+  lines.push(
+    `    order1→${formatOp(ops[i1]!, i1)} → "${runPermutationPrefix(ops, order1, k)}"`,
+  );
+  lines.push(
+    `    order2→${formatOp(ops[i2]!, i2)} → "${runPermutationPrefix(ops, order2, k)}"`,
+  );
+  lines.push(`ORDER1 prefix: ${JSON.stringify(order1.slice(0, k))}`);
+  lines.push(`ORDER2 prefix: ${JSON.stringify(order2.slice(0, k))}`);
+  lines.push(`T1 (full): ${t1}`);
+  lines.push(`T2 (full): ${t2}`);
+  return lines.join("\n");
+}
+
 // ─── deterministic RNG ──────────────────────────────────────────────────────
 
 function rng(seed: number): () => number {
@@ -60,8 +124,6 @@ function shuffledIndices(n: number, seed: number): number[] {
 }
 
 // ─── causal permutation ──────────────────────────────────────────────────────
-// picks a random valid ordering — one where every op's dependencies
-// (leftOrigin for inserts, target for deletes) are already present
 
 function causalPermutation(ops: StoreOp[], seed: number): number[] {
   const rand = rng(seed);
@@ -73,8 +135,11 @@ function causalPermutation(ops: StoreOp[], seed: number): number[] {
     const ready: number[] = [];
     for (const i of remaining) {
       const op = ops[i]!;
-      if (op.type === "insert" && !present.has(toKey(op.leftOrigin))) continue;
-      if (op.type === "delete" && !present.has(toKey(op.id))) continue;
+      if (op.type === "insert") {
+        if (!present.has(toKey(op.leftOrigin))) continue;
+        if (op.rightOrigin && !present.has(toKey(op.rightOrigin))) continue;
+      }
+      if (op.type === "delete" && !present.has(toKey(op.target))) continue;
       ready.push(i);
     }
     assert.ok(ready.length > 0, "deadlock — invalid op batch");
@@ -88,7 +153,6 @@ function causalPermutation(ops: StoreOp[], seed: number): number[] {
 }
 
 // ─── op generator ────────────────────────────────────────────────────────────
-// builds a realistic op sequence using a reference store to derive rightOrigin
 
 function buildOps(bytes: Uint8Array): StoreOp[] {
   const ref = makeStore();
@@ -102,11 +166,9 @@ function buildOps(bytes: Uint8Array): StoreOp[] {
     const doDelete = nodeIds.length > 1 && (b0 & 1) === 1;
 
     if (!doDelete) {
-      // pick a leftOrigin from known nodes
-      const idx = nodeIds.length <= 1 ? 0 : (bytes[i++] ?? 0) % nodeIds.length;
+      const idx =
+        nodeIds.length <= 1 ? 0 : (bytes[i++] ?? 0) % nodeIds.length;
       const leftOriginId = nodeIds[idx]!;
-
-      // derive rightOrigin from the reference store's current state
       const leftNode = ref.nodes.get(toKey(leftOriginId))!;
       const rightOriginId = leftNode.next?.id ?? null;
 
@@ -118,7 +180,6 @@ function buildOps(bytes: Uint8Array): StoreOp[] {
       ops.push(op);
       nodeIds.push(id);
     } else {
-      // pick a live (non-tombstoned) node to delete
       const alive = nodeIds.slice(1).filter((id) => {
         const n = ref.nodes.get(toKey(id));
         return n && !n.tombstone;
@@ -127,6 +188,7 @@ function buildOps(bytes: Uint8Array): StoreOp[] {
         i++;
         continue;
       }
+
       const victim = alive[(bytes[i++] ?? 0) % alive.length]!;
       const op = createDeleteOperation(victim, victim);
       removeFromStore(ref, op);
@@ -165,7 +227,6 @@ describe("NodeStore — unit", () => {
 
   test("concurrent inserts at root — lower counter wins (goes left)", () => {
     const store = makeStore();
-    // counter 2 inserted first (higher counter = lower priority = goes right)
     const idHigh = generateOperationId(CLIENT, 2);
     const idLow = generateOperationId(CLIENT, 1);
     insertIntoStore(store, createInsertOperation(idHigh, "z", ROOT_ID, null));
@@ -180,7 +241,6 @@ describe("NodeStore — unit", () => {
     assert.strictEqual(getText(store), "x");
     removeFromStore(store, createDeleteOperation(id, id));
     assert.strictEqual(getText(store), "");
-    // node still in map — future ops can use it as leftOrigin
     assert.ok(store.nodes.has(toKey(id)));
     assert.strictEqual(store.nodes.get(toKey(id))?.tombstone, true);
   });
@@ -191,7 +251,6 @@ describe("NodeStore — unit", () => {
     const id1 = generateOperationId(CLIENT, 1);
     insertIntoStore(store, createInsertOperation(id0, "a", ROOT_ID, null));
     removeFromStore(store, createDeleteOperation(id0, id0));
-    // id1 references tombstoned id0 as leftOrigin — must still work
     insertIntoStore(store, createInsertOperation(id1, "b", id0, null));
     assert.strictEqual(getText(store), "b");
   });
@@ -212,7 +271,18 @@ describe("NodeStore — unit", () => {
     assert.throws(
       () =>
         insertIntoStore(store, createInsertOperation(id, "a", missing, null)),
-      /not found/,
+      /cannot be merged yet/,
+    );
+  });
+
+  test("insert throws on unknown rightOrigin", () => {
+    const store = makeStore();
+    const missing = generateOperationId(CLIENT, 99);
+    const id = generateOperationId(CLIENT, 0);
+    assert.throws(
+      () =>
+        insertIntoStore(store, createInsertOperation(id, "a", ROOT_ID, missing)),
+      /cannot be merged yet/,
     );
   });
 });
@@ -232,10 +302,9 @@ describe("NodeStore — convergence", () => {
         ),
         fc.integer(),
         (pairs, seed) => {
-          // all ops have same leftOrigin=ROOT, rightOrigin=null
-          // this is the pure concurrent case
-          const ops: InsertOperation[] = pairs.map(([ctr, ch]) =>
-            createInsertOperation([CLIENT, ctr], ch, ROOT_ID, null),
+          // use index as counter — guarantees unique IDs per client
+          const ops: InsertOperation[] = pairs.map(([_, ch], idx) =>
+            createInsertOperation([CLIENT, idx], ch, ROOT_ID, null),
           );
           const order1 = ops.map((_, i) => i);
           const order2 = shuffledIndices(ops.length, seed);
@@ -250,41 +319,40 @@ describe("NodeStore — convergence", () => {
   });
 
   test("realistic insert/delete sequences converge under any causal ordering", () => {
-    fc.assert(
-      fc.property(
-        fc.uint8Array({ minLength: 24, maxLength: 180 }),
-        fc.integer(),
-        fc.integer(),
-        (bytes, seed1, seed2) => {
-          const ops = buildOps(bytes);
-          if (ops.length === 0) return;
-          const order1 = causalPermutation(ops, seed1);
-          const order2 = causalPermutation(ops, seed2);
-          const t1 = runPermutation(ops, order1);
-          const t2 = runPermutation(ops, order2);
+    let lastDivergence: string | null = null;
+    try {
+      fc.assert(
+        fc.property(
+          fc.uint8Array({ minLength: 24, maxLength: 180 }),
+          fc.integer(),
+          fc.integer(),
+          (bytes, seed1, seed2) => {
+            const ops = buildOps(bytes);
+            if (ops.length === 0) return;
+            const order1 = causalPermutation(ops, seed1);
+            const order2 = causalPermutation(ops, seed2);
+            const t1 = runPermutation(ops, order1);
+            const t2 = runPermutation(ops, order2);
 
-          if (t1 !== t2) {
-            console.log("\n=== DIVERGENCE ===");
-            ops.forEach((op, i) => {
-              if (op.type === "insert") {
-                console.log(
-                  `[${i}] INSERT id=:${op.id[1]} val="${op.value}" left=:${op.leftOrigin[1]} right=${op.rightOrigin ? ":" + op.rightOrigin[1] : "null"}`,
-                );
-              } else {
-                console.log(`[${i}] DELETE :${op.id[1]}`);
-              }
-            });
-            console.log("ORDER1:", order1);
-            console.log("ORDER2:", order2);
-            console.log("T1:", t1);
-            console.log("T2:", t2);
-          }
+            if (t1 !== t2) {
+              lastDivergence = formatDivergenceBlock(
+                ops,
+                order1,
+                order2,
+                t1,
+                t2,
+              );
+            }
 
-          assert.strictEqual(t1, t2);
-        },
-      ),
-      { numRuns: 200, seed: 2071779549 },
-    );
+            assert.strictEqual(t1, t2);
+          },
+        ),
+        { numRuns: 200, seed: 2071779549 },
+      );
+    } catch (e) {
+      if (lastDivergence) console.error(`\n${lastDivergence}`);
+      throw e;
+    }
   });
 });
 
@@ -338,7 +406,6 @@ describe("NodeStore — load", () => {
     assert.ok(ms < 10_000, `too slow: ${ms}ms`);
   });
 
-  // this one is intentionally slow — O(n²) scan. documents the known cost.
   test("10k ROOT-sibling inserts — documents O(n²) scan cost", () => {
     const store = makeStore();
     const CLIENT4 = "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as ClientId;
@@ -358,7 +425,5 @@ describe("NodeStore — load", () => {
     const ms = performance.now() - t0;
     assert.strictEqual(getText(store).length, n);
     console.log(`10k ROOT-sibling inserts (O(n²)): ${ms.toFixed(0)}ms`);
-    // no time assertion — this is documenting known quadratic behaviour
-    // fix: add rightOrigin to bound the scan
   });
 });

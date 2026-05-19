@@ -1,6 +1,7 @@
 import { createSkipListNode, type SkipListNode } from "./skipListNode";
 import type { Node } from "../store/types";
 import type { SkipList } from "./types";
+import type { OperationId } from "../ids";
 
 export type { SkipList } from "./types";
 
