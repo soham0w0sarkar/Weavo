@@ -1,8 +1,6 @@
 import type { Node } from "../store/types";
 import type { SkipListNode } from "./types";
 
-export type { SkipListNode } from "./types";
-
 export const createSkipListNode = (
   refCrdtNode: Node,
   height: number,

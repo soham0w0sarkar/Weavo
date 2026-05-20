@@ -1,14 +1,11 @@
-import { ROOT_ID } from "../ids/RootId";
+import { ROOT_ID } from "../ids";
 import type { ClientId } from "../ids/types";
 import { createSkipList } from "../skipList";
-import { createNode } from "../store/Node";
-import { createNodeStore } from "../store/NodeStore";
+import { createNode, createNodeStore } from "../store";
 import type { Document } from "./types";
 
-export type { Document } from "./types";
-
-export const createDocument = (clientId: ClientId): Document => {
-  const rootNode = createNode(ROOT_ID, "", false, null);
+export const createReplica = (clientId: ClientId): Document => {
+  const rootNode = createNode(ROOT_ID, "", false, null, null);
   return {
     clientId,
     counter: 0,

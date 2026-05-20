@@ -1,7 +1,8 @@
-import { generateOperationId } from "../ids/OperationId";
-import type { InsertOperation } from "../operations";
-import { createInsertOperation } from "../operations/insert";
+import { generateOperationId } from "../ids";
+import type { InsertOperation } from "../operations/types";
+import { createInsertOperation } from "../operations";
 import { findByIndex } from "../skipList";
+import { apply } from "./apply";
 import type { Document } from "./types";
 
 export const onInput = (e: InputEvent, doc: Document) => {
@@ -12,6 +13,8 @@ export const onInput = (e: InputEvent, doc: Document) => {
     const position = positionAfter - content.length;
 
     const op = buildOp(doc, position, content);
+
+    apply(doc, op);
   }
 };
 

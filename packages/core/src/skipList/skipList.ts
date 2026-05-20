@@ -1,9 +1,6 @@
-import { createSkipListNode, type SkipListNode } from "./skipListNode";
+import { createSkipListNode } from "./skipListNode";
 import type { Node } from "../store/types";
-import type { SkipList } from "./types";
-import type { OperationId } from "../ids";
-
-export type { SkipList } from "./types";
+import type { SkipList, SkipListNode } from "./types";
 
 const MAX_HEIGHT = 32;
 

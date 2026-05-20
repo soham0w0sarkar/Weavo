@@ -1,6 +1,5 @@
-import * as ClientId from "./ClientId";
-import * as OperationId from "./OperationId";
-import * as RootId from "./RootId";
-import * as compare from "./compare";
-
-export { ClientId, OperationId, RootId, compare };
+export type { ClientId, OperationId, OperationKey } from "./types";
+export { generateClientId } from "./ClientId";
+export { toKey, generateOperationId } from "./OperationId";
+export { ROOT_ID } from "./RootId";
+export { compareOperationId } from "./compare";
