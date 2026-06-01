@@ -1,5 +1,5 @@
 {
-  "name": "@repo/core",
+  "name": "@repo/transport",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -22,6 +22,8 @@
     "typescript": "latest"
   },
   "dependencies": {
+    "@repo/core": "workspace:*",
+    "@repo/sync": "workspace:*",
     "tsup": "^8.5.1"
   }
 }

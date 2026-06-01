@@ -1,5 +1,5 @@
 {
-  "name": "@repo/core",
+  "name": "@repo/sync",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -9,19 +9,13 @@
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "test": "bun test"
   },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
-  },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "fast-check": "^4.6.0",
     "typescript": "latest"
   },
   "dependencies": {
+    "@repo/core": "workspace:*",
     "tsup": "^8.5.1"
   }
 }
