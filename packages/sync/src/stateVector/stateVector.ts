@@ -9,7 +9,6 @@ export const update = (sv: StateVector, id: OperationId) => {
 };
 
 export const missingOps = (
-  doc: Document,
   mineSv: StateVector,
   theirSv: StateVector,
 ): OperationId[] => {
