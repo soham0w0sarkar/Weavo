@@ -1,6 +1,5 @@
 import type { Document, OperationId } from "@repo/core";
 import type { StateVector } from "./type";
-import type { Operation } from "../buffer";
 
 export const update = (sv: StateVector, id: OperationId) => {
   const [clientId, clock] = id;

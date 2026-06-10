@@ -1,2 +1,8 @@
-export { waiting, buffered, canApply } from "./buffer";
-export type { Operation, OperationKey } from "./types";
+export {
+  addToBuffer,
+  addToDeleteBuffer,
+  deleteFromDeleteBuffer,
+  flush,
+  canApply,
+} from "./buffer";
+export type { OperationKey } from "./types";
