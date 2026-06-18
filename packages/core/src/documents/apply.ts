@@ -1,12 +1,19 @@
 import type { DeleteOperation, InsertOperation } from "../operations/types";
-import { insert, remove } from "../store";
+import { insert as crdtInsert, remove as crdtRemove } from "../store";
+import {
+  findIndex,
+  insert as indexingInsert,
+  remove as indexingRemove,
+} from "../skipList";
 import type { Document } from "./types";
 
 export const apply = (doc: Document, op: InsertOperation | DeleteOperation) => {
-  doc.counter = Number(doc.counter) + 1;
   if (op.type === "insert") {
-    insert(doc.store, op);
+    doc.counter = Number(doc.counter) + 1;
+    crdtInsert(doc.store, op);
+    const idxOfLeft = findIndex(doc.skipList, op.leftOrigin);
+    indexingInsert(doc.skipList, idxOfLeft + 1, op.id);
   } else {
-    remove(doc.store, op);
+    crdtRemove(doc.store, op);
   }
 };

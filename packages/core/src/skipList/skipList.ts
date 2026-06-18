@@ -1,11 +1,14 @@
 import { createSkipListNode } from "./skipListNode";
+import { ROOT_ID, toKey, type OperationId } from "../ids";
 import type { Node } from "../store/types";
 import type { SkipList, SkipListNode } from "./types";
 
 const MAX_HEIGHT = 32;
 
-export const createSkipList = (root: Node): SkipList => {
-  return { head: createSkipListNode(root, MAX_HEIGHT), length: 0 };
+export const createSkipList = (): SkipList => {
+  const head = createSkipListNode(toKey(ROOT_ID), MAX_HEIGHT);
+  const nodeMap = new Map([[toKey(ROOT_ID), head]]);
+  return { head, length: 0, nodeMap };
 };
 
 const randomLevel = (): number => {
@@ -14,6 +17,23 @@ const randomLevel = (): number => {
     level++;
   }
   return level;
+};
+
+export const findIndex = (sl: SkipList, id: OperationId): number => {
+  const target = sl.nodeMap.get(toKey(id));
+  if (!target) return -1;
+
+  let index = 0;
+  let current = sl.head;
+
+  for (let lvl = MAX_HEIGHT - 1; lvl >= 0; lvl--) {
+    while (current.next[lvl] !== null && current.next[lvl] !== target) {
+      index += current.span[lvl];
+      current = current.next[lvl]!;
+    }
+  }
+
+  return index;
 };
 
 export const findByIndex = (
@@ -41,7 +61,7 @@ export const findByIndex = (
 export const insert = (
   sl: SkipList,
   index: number,
-  crdtNode: Node,
+  refCrdtId: OperationId,
 ): SkipListNode => {
   const update = Array(MAX_HEIGHT).fill(sl.head);
   const rank = Array(MAX_HEIGHT).fill(0);
@@ -65,7 +85,8 @@ export const insert = (
   }
 
   const level = randomLevel();
-  const newNode = createSkipListNode(crdtNode, level);
+  const newNode = createSkipListNode(toKey(refCrdtId), level);
+  sl.nodeMap.set(toKey(refCrdtId), newNode);
 
   for (let lvl = 0; lvl < level; lvl++) {
     newNode.next[lvl] = update[lvl].next[lvl];
@@ -83,13 +104,13 @@ export const insert = (
   return newNode;
 };
 
-export const remove = (sl: SkipList, crdtNode: Node): boolean => {
+export const remove = (sl: SkipList, refCrdtId: OperationId): boolean => {
   let cur = sl.head;
-  while (cur.next[0] && cur.next[0].refCrdtNode !== crdtNode) {
+  while (cur.next[0] && cur.next[0].refCrdtKey !== toKey(refCrdtId)) {
     cur = cur.next[0];
   }
   const target = cur.next[0];
-  if (!target || target.refCrdtNode !== crdtNode) return false;
+  if (!target || target.refCrdtKey !== toKey(refCrdtId)) return false;
 
   const l0Rank = new Map<SkipListNode, number>();
   {
@@ -127,5 +148,6 @@ export const remove = (sl: SkipList, crdtNode: Node): boolean => {
   }
 
   sl.length--;
+  sl.nodeMap.delete(toKey(refCrdtId));
   return true;
 };

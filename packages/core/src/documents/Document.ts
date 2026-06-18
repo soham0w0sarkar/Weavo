@@ -10,6 +10,6 @@ export const createReplica = (clientId: ClientId): Document => {
     clientId,
     counter: 0,
     store: createNodeStore(rootNode),
-    skipList: createSkipList(rootNode),
+    skipList: createSkipList(),
   };
 };

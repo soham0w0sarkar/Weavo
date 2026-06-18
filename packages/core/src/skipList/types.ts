@@ -1,7 +1,8 @@
+import type { OperationKey } from "../ids";
 import type { Node } from "../store/types";
 
 export type SkipListNode = {
-  refCrdtNode: Node;
+  refCrdtKey: OperationKey;
   height: number;
   next: (SkipListNode | null)[];
   span: number[];
@@ -10,4 +11,5 @@ export type SkipListNode = {
 export type SkipList = {
   head: SkipListNode;
   length: number;
+  nodeMap: Map<OperationKey, SkipListNode>;
 };

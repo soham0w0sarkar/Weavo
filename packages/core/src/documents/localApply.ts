@@ -1,4 +1,4 @@
-import { generateOperationId } from "../ids";
+import { generateOperationId, toKey } from "../ids";
 import type { InsertOperation } from "../operations/types";
 import { createInsertOperation } from "../operations";
 import { findByIndex } from "../skipList";
@@ -23,11 +23,18 @@ export const buildOp = (
   position: number,
   content: string,
 ): InsertOperation => {
-  const node = findByIndex(doc.skipList, position - 1);
-  const refNode = node?.refCrdtNode!;
+  const slNodePred = findByIndex(doc.skipList, position - 1);
+  if (!slNodePred) throw new Error("no node found");
+
+  const nodeLeft = doc.store.nodes.get(slNodePred.refCrdtKey);
+  if (!nodeLeft) throw new Error("no node found");
+
+  const nodeRight = slNodePred.next[0]
+    ? doc.store.nodes.get(slNodePred.next[0].refCrdtKey)
+    : null;
 
   const opId = generateOperationId(doc.clientId, doc.counter);
-  const op = createInsertOperation(opId, content, refNode.id);
+  const op = createInsertOperation(opId, content, nodeLeft.id, nodeRight?.id);
 
   return op;
 };

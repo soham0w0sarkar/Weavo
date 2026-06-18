@@ -4,7 +4,7 @@ import type { DeleteOperation, InsertOperation } from "../operations/types";
 import { createNode } from "./Node";
 import type { Node, NodeStore } from "./types";
 
-const keyMatchHelper = (
+export const keyMatchHelper = (
   id1: OperationId | null | undefined,
   id2: OperationId | null | undefined,
 ): boolean => {
