@@ -1,7 +1,5 @@
 export {
   addToBuffer,
-  addToDeleteBuffer,
-  deleteFromDeleteBuffer,
   flush,
   canApply,
 } from "./buffer";

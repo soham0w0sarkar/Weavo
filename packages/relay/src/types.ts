@@ -1,5 +1,5 @@
 import type { ClientId } from "@repo/core";
 
-export type TimerId = number | undefined;
+export type TimerRef = { current: ReturnType<typeof setTimeout> | undefined };
 
 export type PeersReq = ClientId[];

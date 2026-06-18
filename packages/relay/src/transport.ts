@@ -1,4 +1,5 @@
 import {
+  apply,
   createDeleteOperation,
   createInsertOperation,
   toKey,
@@ -9,46 +10,16 @@ import {
   type NodeStore,
   type OperationId,
 } from "@repo/core";
-import { missingOps, type StateVector } from "@repo/sync";
+import {
+  addToBuffer,
+  canApply,
+  flush,
+  missingOps,
+  update,
+  type StateVector,
+} from "@repo/sync";
 import type { Message, Transport } from "@repo/transport";
-import type { PeersReq, TimerId } from "./types";
-
-export const manageTransport = (
-  transport: Transport,
-  doc: Document,
-  sv: StateVector,
-) => {
-  let timerId: TimerId;
-  const requestQueue: PeersReq = [];
-
-  transport.onOpen(() => {
-    transport.send({
-      type: "sync-request",
-      vector: sv,
-      clientId: doc.clientId,
-    });
-  });
-
-  transport.onMessage((message: Message) => {
-    switch (message.type) {
-      case "op":
-        handleIncomingOp(doc, message.op, sv);
-        break;
-      case "sync-request":
-        handleSyncReq(sv, message.vector, transport, timerId, requestQueue);
-        break;
-      case "sync-response":
-        handleSyncRes(
-          doc,
-          requestQueue,
-          doc.clientId,
-          message.ops,
-          sv,
-          timerId,
-        );
-    }
-  });
-};
+import type { PeersReq, TimerRef } from "./types";
 
 const nodesToOp = (
   nd: NodeStore,
@@ -76,20 +47,41 @@ const nodesToOp = (
   return operations;
 };
 
+const isOpPresent = (
+  store: NodeStore,
+  op: InsertOperation | DeleteOperation,
+): boolean => {
+  const node = store.nodes.get(toKey(op.type === "insert" ? op.id : op.target));
+  if (!node) return false;
+  if (op.type === "delete") return node.tombstone;
+  return true;
+};
+
 const handleIncomingOp = (
   doc: Document,
   op: InsertOperation | DeleteOperation,
   sv: StateVector,
-) => {};
+) => {
+  if (isOpPresent(doc.store, op)) return;
+
+  if (canApply(doc, op)) {
+    apply(doc, op);
+    flush(doc, op);
+    update(sv, op.type === "delete" ? op.target : op.id);
+  } else {
+    addToBuffer(doc, op);
+  }
+};
 
 const handleSyncReq = (
   mineSv: StateVector,
   theirSv: StateVector,
   transport: Transport,
-  timerId: TimerId,
+  timerRef: TimerRef,
   requestQueue: PeersReq,
+  doc: Document,
 ) => {
-  if (timerId) return;
+  if (timerRef.current) return;
 
   const misingOps = missingOps(mineSv, theirSv);
 
@@ -98,8 +90,12 @@ const handleSyncReq = (
       ? Infinity
       : -Math.log(Math.random()) / misingOps.length;
 
-  timerId = setTimeout(() => {
-    transport.send({ type: "sync-response", ops: [], clientIds: requestQueue });
+  const ops = nodesToOp(doc.store, misingOps);
+
+  timerRef.current = setTimeout(() => {
+    transport.send({ type: "sync-response", ops, clientIds: requestQueue });
+    requestQueue.length = 0;
+    timerRef.current = undefined;
   }, backOffDelay);
 };
 
@@ -109,7 +105,7 @@ const handleSyncRes = (
   opClientId: ClientId,
   ops: (InsertOperation | DeleteOperation)[],
   sv: StateVector,
-  timerId: TimerId,
+  timerRef: TimerRef,
 ) => {
   const isMinePresent = clientIds.includes(opClientId);
 
@@ -120,5 +116,50 @@ const handleSyncRes = (
     return;
   }
 
-  clearTimeout(timerId);
+  clearTimeout(timerRef.current);
+};
+
+export const manageTransport = (
+  transport: Transport,
+  doc: Document,
+  sv: StateVector,
+) => {
+  const timerRef: TimerRef = { current: undefined };
+  const requestQueue: PeersReq = [];
+
+  transport.onOpen(() => {
+    transport.send({
+      type: "sync-request",
+      vector: sv,
+      clientId: doc.clientId,
+    });
+  });
+
+  transport.onMessage((message: Message) => {
+    switch (message.type) {
+      case "op":
+        handleIncomingOp(doc, message.op, sv);
+        break;
+      case "sync-request":
+        requestQueue.push(message.clientId);
+        handleSyncReq(
+          sv,
+          message.vector,
+          transport,
+          timerRef,
+          requestQueue,
+          doc,
+        );
+        break;
+      case "sync-response":
+        handleSyncRes(
+          doc,
+          requestQueue,
+          doc.clientId,
+          message.ops,
+          sv,
+          timerRef,
+        );
+    }
+  });
 };
