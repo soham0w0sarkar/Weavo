@@ -1,0 +1,49 @@
+import type { ServerWebSocket } from "bun";
+
+type RoomData = { room: string };
+
+const PORT = Number(process.env.PORT ?? 8080);
+const rooms = new Map<string, Set<ServerWebSocket<RoomData>>>();
+
+const getRoom = (room: string) => {
+  if (!rooms.has(room)) rooms.set(room, new Set());
+  return rooms.get(room)!;
+};
+
+Bun.serve<RoomData>({
+  port: PORT,
+  fetch(req, server) {
+    const url = new URL(req.url);
+    const room = url.searchParams.get("room") ?? "default";
+
+    if (server.upgrade(req, { data: { room } })) return undefined;
+
+    return new Response("Relay WebSocket server\n", { status: 200 });
+  },
+  websocket: {
+    open(ws) {
+      const peers = getRoom(ws.data.room);
+      peers.add(ws);
+      console.log(`client joined room "${ws.data.room}" (${peers.size} connected)`);
+    },
+    message(ws, message) {
+      const peers = getRoom(ws.data.room);
+      const data = typeof message === "string" ? message : message.toString();
+
+      for (const peer of peers) {
+        if (peer !== ws && peer.readyState === WebSocket.OPEN) {
+          peer.send(data);
+        }
+      }
+    },
+    close(ws) {
+      const peers = rooms.get(ws.data.room);
+      if (!peers) return;
+      peers.delete(ws);
+      if (peers.size === 0) rooms.delete(ws.data.room);
+      console.log(`client left room "${ws.data.room}" (${peers.size} connected)`);
+    },
+  },
+});
+
+console.log(`Relay WebSocket server listening on ws://localhost:${PORT}`);

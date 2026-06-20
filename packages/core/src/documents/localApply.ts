@@ -99,7 +99,11 @@ export const buildOp = (
   content: string | null = null,
 ): Operation => {
   if (type === "ins") {
-    const slNodePred = findByIndex(doc.skipList, position - 1);
+    const predIndex = position - 1;
+    const slNodePred =
+      predIndex < 0
+        ? doc.skipList.head
+        : findByIndex(doc.skipList, predIndex);
     if (!slNodePred) throw new Error("no node found");
 
     const nodeLeft = doc.store.nodes.get(slNodePred.refCrdtKey);

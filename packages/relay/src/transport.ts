@@ -20,10 +20,7 @@ import {
 import type { Message, Transport } from "@repo/transport";
 import type { OnApplied, PeersReq, TimerRef } from "./types";
 
-const nodesToOp = (
-  nd: NodeStore,
-  ops: OperationId[],
-): Operation[] => {
+const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
   const operations: Operation[] = [];
 
   ops.map((op) => {
@@ -46,10 +43,7 @@ const nodesToOp = (
   return operations;
 };
 
-const isOpPresent = (
-  store: NodeStore,
-  op: Operation,
-): boolean => {
+const isOpPresent = (store: NodeStore, op: Operation): boolean => {
   const node = store.nodes.get(toKey(op.type === "insert" ? op.id : op.target));
   if (!node) return false;
   if (op.type === "delete") return node.tombstone;
@@ -66,6 +60,7 @@ const handleIncomingOp = (
 
   if (canApply(doc, op)) {
     apply(doc, op);
+    onApplied(op);
     const appliedOps = flush(doc, op);
 
     appliedOps.forEach((op) => onApplied(op));
@@ -113,6 +108,9 @@ const handleSyncRes = (
 ) => {
   const isMinePresent = clientIds.includes(opClientId);
 
+  console.log(clientIds);
+  console.log(opClientId);
+
   if (isMinePresent) {
     ops.map((op) => {
       handleIncomingOp(doc, op, sv, onApplied);
@@ -159,7 +157,7 @@ export const manageTransport = (
       case "sync-response":
         handleSyncRes(
           doc,
-          requestQueue,
+          message.clientIds,
           doc.clientId,
           message.ops,
           sv,

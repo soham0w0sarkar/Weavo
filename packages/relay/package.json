@@ -3,7 +3,14 @@
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
   "scripts": {
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "build": "tsup src/index.ts --format cjs,esm --dts",
@@ -12,7 +19,7 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "fast-check": "^4.6.0",
-    "typescript": "latest"
+    "typescript": "5.9.2"
   },
   "dependencies": {
     "@repo/core": "workspace:*",

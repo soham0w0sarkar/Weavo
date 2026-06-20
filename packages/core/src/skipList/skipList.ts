@@ -28,7 +28,7 @@ export const findIndex = (sl: SkipList, id: OperationId): number => {
 
   for (let lvl = MAX_HEIGHT - 1; lvl >= 0; lvl--) {
     while (current.next[lvl] !== null && current.next[lvl] !== target) {
-      index += current.span[lvl];
+      index += current.span[lvl] ?? 0;
       current = current.next[lvl]!;
     }
   }
@@ -55,7 +55,7 @@ export const findByIndex = (
     }
   }
 
-  return node.next[0];
+  return node.next[0] ?? null;
 };
 
 export const insert = (
@@ -107,7 +107,7 @@ export const insert = (
 export const remove = (sl: SkipList, refCrdtId: OperationId): boolean => {
   let cur = sl.head;
   while (cur.next[0] && cur.next[0].refCrdtKey !== toKey(refCrdtId)) {
-    cur = cur.next[0];
+    cur = cur.next[0]!;
   }
   const target = cur.next[0];
   if (!target || target.refCrdtKey !== toKey(refCrdtId)) return false;
@@ -118,7 +118,7 @@ export const remove = (sl: SkipList, refCrdtId: OperationId): boolean => {
     let r = 0;
     while (w) {
       l0Rank.set(w, r++);
-      w = w.next[0];
+      w = w.next[0] ?? null;
     }
   }
   const targetRank = l0Rank.get(target);
@@ -139,11 +139,12 @@ export const remove = (sl: SkipList, refCrdtId: OperationId): boolean => {
   }
 
   for (let lvl = 0; lvl < MAX_HEIGHT; lvl++) {
-    if (update[lvl].next[lvl] !== target) {
-      update[lvl].span[lvl]--;
+    const pred = update[lvl]!;
+    if (pred.next[lvl] !== target) {
+      pred.span[lvl] = (pred.span[lvl] ?? 0) - 1;
     } else {
-      update[lvl].span[lvl] += target.span[lvl] - 1;
-      update[lvl].next[lvl] = target.next[lvl];
+      pred.span[lvl] = (pred.span[lvl] ?? 0) + (target.span[lvl] ?? 0) - 1;
+      pred.next[lvl] = target.next[lvl] ?? null;
     }
   }
 

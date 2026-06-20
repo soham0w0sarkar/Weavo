@@ -1,4 +1,28 @@
-import type { Message, RawTransport, Transport } from "./types";
+import {
+  decodeStateVector,
+  encodeStateVector,
+} from "@repo/sync";
+import type { Message, RawTransport, Transport, WireMessage } from "./types";
+
+const encodeMessage = (message: Message): WireMessage => {
+  if (message.type === "sync-request") {
+    return {
+      ...message,
+      vector: encodeStateVector(message.vector),
+    };
+  }
+  return message;
+};
+
+const decodeMessage = (wire: WireMessage): Message => {
+  if (wire.type === "sync-request") {
+    return {
+      ...wire,
+      vector: decodeStateVector(wire.vector),
+    };
+  }
+  return wire;
+};
 
 export const createTransport = (raw: RawTransport): Transport => {
   return {
@@ -6,14 +30,13 @@ export const createTransport = (raw: RawTransport): Transport => {
     disconnect: raw.disconnect,
 
     send(message) {
-      raw.send(JSON.stringify(message));
+      raw.send(JSON.stringify(encodeMessage(message)));
     },
 
     onMessage(cb) {
       return raw.onMessage((data) => {
-        const message = JSON.parse(data) as Message;
-
-        cb(message);
+        const wire = JSON.parse(data) as WireMessage;
+        cb(decodeMessage(wire));
       });
     },
 
