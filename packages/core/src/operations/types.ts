@@ -12,3 +12,5 @@ export type DeleteOperation = {
   type: "delete";
   target: OperationId;
 };
+
+export type Operation = InsertOperation | DeleteOperation;

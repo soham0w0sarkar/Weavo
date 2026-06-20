@@ -1,5 +1,1 @@
-export type {
-  OperationKey,
-  InsertOperation,
-  DeleteOperation,
-} from "@repo/core";
+export type { OperationKey, Operation } from "@repo/core";

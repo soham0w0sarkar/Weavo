@@ -4,10 +4,9 @@ import {
   createInsertOperation,
   toKey,
   type ClientId,
-  type DeleteOperation,
   type Document,
-  type InsertOperation,
   type NodeStore,
+  type Operation,
   type OperationId,
 } from "@repo/core";
 import {
@@ -19,13 +18,13 @@ import {
   type StateVector,
 } from "@repo/sync";
 import type { Message, Transport } from "@repo/transport";
-import type { PeersReq, TimerRef } from "./types";
+import type { OnApplied, PeersReq, TimerRef } from "./types";
 
 const nodesToOp = (
   nd: NodeStore,
   ops: OperationId[],
-): (InsertOperation | DeleteOperation)[] => {
-  const operations: (InsertOperation | DeleteOperation)[] = [];
+): Operation[] => {
+  const operations: Operation[] = [];
 
   ops.map((op) => {
     const node = nd.nodes.get(toKey(op));
@@ -49,7 +48,7 @@ const nodesToOp = (
 
 const isOpPresent = (
   store: NodeStore,
-  op: InsertOperation | DeleteOperation,
+  op: Operation,
 ): boolean => {
   const node = store.nodes.get(toKey(op.type === "insert" ? op.id : op.target));
   if (!node) return false;
@@ -59,14 +58,18 @@ const isOpPresent = (
 
 const handleIncomingOp = (
   doc: Document,
-  op: InsertOperation | DeleteOperation,
+  op: Operation,
   sv: StateVector,
+  onApplied: OnApplied,
 ) => {
   if (isOpPresent(doc.store, op)) return;
 
   if (canApply(doc, op)) {
     apply(doc, op);
-    flush(doc, op);
+    const appliedOps = flush(doc, op);
+
+    appliedOps.forEach((op) => onApplied(op));
+
     update(sv, op.type === "delete" ? op.target : op.id);
   } else {
     addToBuffer(doc, op);
@@ -103,15 +106,16 @@ const handleSyncRes = (
   doc: Document,
   clientIds: PeersReq,
   opClientId: ClientId,
-  ops: (InsertOperation | DeleteOperation)[],
+  ops: Operation[],
   sv: StateVector,
   timerRef: TimerRef,
+  onApplied: OnApplied,
 ) => {
   const isMinePresent = clientIds.includes(opClientId);
 
   if (isMinePresent) {
     ops.map((op) => {
-      handleIncomingOp(doc, op, sv);
+      handleIncomingOp(doc, op, sv, onApplied);
     });
     return;
   }
@@ -123,6 +127,7 @@ export const manageTransport = (
   transport: Transport,
   doc: Document,
   sv: StateVector,
+  onApplied: OnApplied,
 ) => {
   const timerRef: TimerRef = { current: undefined };
   const requestQueue: PeersReq = [];
@@ -138,7 +143,7 @@ export const manageTransport = (
   transport.onMessage((message: Message) => {
     switch (message.type) {
       case "op":
-        handleIncomingOp(doc, message.op, sv);
+        handleIncomingOp(doc, message.op, sv, onApplied);
         break;
       case "sync-request":
         requestQueue.push(message.clientId);
@@ -159,6 +164,7 @@ export const manageTransport = (
           message.ops,
           sv,
           timerRef,
+          onApplied,
         );
     }
   });

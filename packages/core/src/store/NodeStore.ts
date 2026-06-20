@@ -1,6 +1,6 @@
 import { compareOperationId, ROOT_ID, toKey } from "../ids";
 import type { OperationId, OperationKey } from "../ids/types";
-import type { DeleteOperation, InsertOperation } from "../operations/types";
+import type { DeleteOperation, InsertOperation } from "../operations";
 import { createNode } from "./Node";
 import type { Node, NodeStore } from "./types";
 

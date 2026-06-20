@@ -1,12 +1,15 @@
 import { test, describe } from "node:test";
 import { strict as assert } from "node:assert";
 import fc from "fast-check";
-import type { ClientId, OperationId } from "../src/ids/types";
-import { generateOperationId, toKey } from "../src/ids/OperationId";
+import type { ClientId, OperationId } from "../src/ids";
+import { generateOperationId, toKey } from "../src/ids";
 import { ROOT_ID } from "../src/ids/RootId";
-import { createDeleteOperation } from "../src/operations/delete";
-import { createInsertOperation } from "../src/operations/insert";
-import type { DeleteOperation, InsertOperation } from "../src/operations/types";
+import {
+  createDeleteOperation,
+  createInsertOperation,
+  type InsertOperation,
+  type Operation,
+} from "../src/operations";
 import { createNode } from "../src/store/Node";
 import {
   createNodeStore,
@@ -19,7 +22,7 @@ import {
 
 const CLIENT = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb" as ClientId;
 
-type StoreOp = InsertOperation | DeleteOperation;
+type StoreOp = Operation;
 
 function makeStore() {
   const root = createNode(ROOT_ID, "", false, null, null);

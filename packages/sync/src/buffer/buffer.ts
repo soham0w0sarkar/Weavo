@@ -4,6 +4,7 @@ import {
   toKey,
   type InsertOperation,
   type DeleteOperation,
+  type Operation,
   apply,
   type OperationId,
 } from "@repo/core";
@@ -14,7 +15,7 @@ const pendingDeleteOps = new Map<OperationKey, DeleteOperation>();
 
 const getMissingDeps = (
   doc: Document,
-  op: InsertOperation | DeleteOperation,
+  op: Operation,
 ): OperationKey[] => {
   const missing = [];
 
@@ -30,7 +31,7 @@ const getMissingDeps = (
 
 export const addToBuffer = (
   doc: Document,
-  op: InsertOperation | DeleteOperation,
+  op: Operation,
 ) => {
   if (op.type === "delete") {
     pendingDeleteOps.set(toKey(op.target), op);
@@ -48,13 +49,14 @@ export const addToBuffer = (
 
 export const flush = (
   doc: Document,
-  unblockedKey: InsertOperation | DeleteOperation,
-) => {
+  unblockedKey: Operation,
+): Operation[] => {
   if (unblockedKey.type === "delete") {
     pendingDeleteOps.delete(toKey(unblockedKey.target));
-    return;
+    return [];
   }
 
+  const operations = [];
   const waitingQueue = [...(waiting.get(toKey(unblockedKey.id)) ?? [])];
 
   while (waitingQueue.length) {
@@ -63,10 +65,13 @@ export const flush = (
 
     apply(doc, op);
     cleanUp(op);
+    operations.push(op);
 
     const next = waiting.get(toKey(op.id)) ?? [];
     waitingQueue.push(...next);
   }
+
+  return operations;
 };
 
 const cleanUp = (op: InsertOperation) => {
@@ -86,7 +91,7 @@ const cleanUp = (op: InsertOperation) => {
 
 export const canApply = (
   doc: Document,
-  op: InsertOperation | DeleteOperation,
+  op: Operation,
 ): boolean => {
   if (op.type === "insert") return canApplyInsert(doc, op);
 

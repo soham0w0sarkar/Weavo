@@ -3,4 +3,4 @@ export {
   flush,
   canApply,
 } from "./buffer";
-export type { OperationKey } from "./types";
+export type { OperationKey, Operation } from "./types";
