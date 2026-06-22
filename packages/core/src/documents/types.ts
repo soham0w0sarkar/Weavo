@@ -10,7 +10,9 @@ export type Document = {
   skipList: SkipList;
 };
 
-export type OnApplied = (operation: Operation) => void;
+export type AppliedOp = { op: Operation; index: number };
+
+export type OnApplied = (operation: Operation, index: number) => void;
 
 export type Before = {
   start: number;

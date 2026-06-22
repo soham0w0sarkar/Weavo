@@ -1,6 +1,5 @@
 import {
   createReplica,
-  findIndex,
   generateClientId,
   onInput as localInput,
   type Operation,
@@ -9,6 +8,15 @@ import { createTransport, createWebSocketTransport } from "@repo/transport";
 import { manageTransport } from "./transport";
 import { update, type StateVector } from "@repo/sync";
 import { createSubscription } from "./Subscription";
+import { applyTextChange, toTextChange } from "./textChange";
+import { reconcileBefore, type InputSnapshot } from "./inputSnapshot";
+import type { TextChange } from "./types";
+
+const captureSnapshot = (el: HTMLTextAreaElement): InputSnapshot => ({
+  start: el.selectionStart,
+  end: el.selectionEnd,
+  value: el.value,
+});
 
 export const createRelay = (url: string) => {
   const clientId = generateClientId();
@@ -19,34 +27,26 @@ export const createRelay = (url: string) => {
   const transport = createTransport(rawTransport);
   const subscription = createSubscription();
 
-  let before: { start: number; end: number; value: string } | null = null;
+  let before: InputSnapshot | null = null;
+  let boundEl: HTMLTextAreaElement | null = null;
 
-  const onApplied = (op: Operation) => {
-    if (op.type === "insert") {
-      const index = findIndex(doc.skipList, op.id);
-      subscription.emit({ index, insert: op.value });
-    }
-    if (op.type === "delete") {
-      const index = findIndex(doc.skipList, op.target);
-      subscription.emit({ index, delete: 1 });
-    }
+  const emitChange = (change: TextChange) => subscription.emit(change);
+
+  const applyRemoteToBound = (change: TextChange) => {
+    if (boundEl) boundEl.value = applyTextChange(boundEl.value, change);
+    emitChange(change);
   };
 
-  const onBeforeInput = (event: InputEvent) => {
-    const target = event.target as HTMLTextAreaElement;
-    before = {
-      start: target.selectionStart,
-      end: target.selectionEnd,
-      value: target.value,
-    };
+  const onApplied = (op: Operation, index: number) => {
+    applyRemoteToBound(toTextChange(op, index));
   };
 
-  const onInput = (event: InputEvent) => {
-    const ops = localInput(event, doc, before);
-    if (!ops) return;
-    ops.forEach((op) => {
+  const processLocalInput = (event: InputEvent) => {
+    const applied = localInput(event, doc, before);
+    if (!applied) return;
+    applied.forEach(({ op, index }) => {
       update(sv, op.type === "insert" ? op.id : op.target);
-      onApplied(op);
+      emitChange(toTextChange(op, index));
       transport.send({ type: "op", op });
     });
   };
@@ -54,10 +54,51 @@ export const createRelay = (url: string) => {
   manageTransport(transport, doc, sv, onApplied);
   transport.connect();
 
+  const bind = (el: HTMLTextAreaElement) => {
+    boundEl = el;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Backspace" || event.key === "Delete") {
+        before = captureSnapshot(el);
+      }
+    };
+
+    const onBeforeInput = (event: Event) => {
+      before = captureSnapshot(event.target as HTMLTextAreaElement);
+    };
+
+    const onInput = (event: Event) => {
+      const inputEvent = event as InputEvent;
+      if (!before) return;
+      before = reconcileBefore(before, el.value, inputEvent.inputType);
+      processLocalInput(inputEvent);
+    };
+
+    const refreshSnapshot = () => {
+      before = captureSnapshot(el);
+    };
+
+    el.addEventListener("keydown", onKeyDown, true);
+    el.addEventListener("beforeinput", onBeforeInput);
+    el.addEventListener("input", onInput);
+    el.addEventListener("click", refreshSnapshot);
+    el.addEventListener("select", refreshSnapshot);
+    el.addEventListener("keyup", refreshSnapshot);
+
+    return () => {
+      el.removeEventListener("keydown", onKeyDown, true);
+      el.removeEventListener("beforeinput", onBeforeInput);
+      el.removeEventListener("input", onInput);
+      el.removeEventListener("click", refreshSnapshot);
+      el.removeEventListener("select", refreshSnapshot);
+      el.removeEventListener("keyup", refreshSnapshot);
+      if (boundEl === el) boundEl = null;
+    };
+  };
+
   return {
+    bind,
     textSubscribe: subscription.subscribe,
-    onInput,
-    onBeforeInput,
     disconnect: () => transport.disconnect(),
   };
 };

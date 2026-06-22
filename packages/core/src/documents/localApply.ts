@@ -1,4 +1,4 @@
-import { generateOperationId, toKey } from "../ids";
+import { generateOperationId } from "../ids";
 import {
   createDeleteOperation,
   createInsertOperation,
@@ -6,7 +6,7 @@ import {
 } from "../operations";
 import { findByIndex } from "../skipList";
 import { apply } from "./apply";
-import type { Before, Document } from "./types";
+import type { AppliedOp, Before, Document } from "./types";
 
 const buildOpFromLocalInput = (
   doc: Document,
@@ -14,16 +14,20 @@ const buildOpFromLocalInput = (
   insertedLength: number,
   deletedLength: number,
   position: number,
-): Operation[] => {
-  const op = [];
+): AppliedOp[] => {
+  const applied: AppliedOp[] = [];
+
   for (let i = 0; i < insertedLength; i++) {
-    op.push(buildOp(doc, position + i, "ins", insertedText[i]));
-  }
-  for (let i = 0; i < deletedLength; i++) {
-    op.push(buildOp(doc, position + i, "del"));
+    const op = buildOp(doc, position + i, "ins", insertedText[i]);
+    applied.push({ op, index: apply(doc, op) });
   }
 
-  return op;
+  for (let i = 0; i < deletedLength; i++) {
+    const op = buildOp(doc, position + i, "del");
+    applied.push({ op, index: apply(doc, op) });
+  }
+
+  return applied;
 };
 
 export const onBeforeInput = (e: InputEvent, before: Before) => {
@@ -40,12 +44,8 @@ export const onInput = (
   e: InputEvent,
   doc: Document,
   before: Before,
-): Operation[] | null => {
+): AppliedOp[] | null => {
   if (!before) return null;
-
-  const target = e.target as HTMLTextAreaElement;
-
-  const selectedText = before.value.slice(before.start, before.end);
 
   const deletedLength = before.end - before.start;
 
@@ -56,23 +56,19 @@ export const onInput = (
     case "insertText":
     case "insertLineBreak":
     case "insertFromPaste": {
-      const ops = buildOpFromLocalInput(
+      return buildOpFromLocalInput(
         doc,
         insertedText,
         insertedText.length,
         deletedLength,
         before.start,
       );
-
-      ops.map((op) => apply(doc, op));
-
-      return ops;
     }
 
     case "deleteContentBackward":
     case "deleteContentForward":
     case "deleteByCut": {
-      const ops = buildOpFromLocalInput(
+      return buildOpFromLocalInput(
         doc,
         "",
         0,
@@ -81,10 +77,6 @@ export const onInput = (
           ? before.start - 1
           : before.start,
       );
-
-      ops.map((op) => apply(doc, op));
-
-      return ops;
     }
 
     default:
@@ -101,9 +93,7 @@ export const buildOp = (
   if (type === "ins") {
     const predIndex = position - 1;
     const slNodePred =
-      predIndex < 0
-        ? doc.skipList.head
-        : findByIndex(doc.skipList, predIndex);
+      predIndex < 0 ? doc.skipList.head : findByIndex(doc.skipList, predIndex);
     if (!slNodePred) throw new Error("no node found");
 
     const nodeLeft = doc.store.nodes.get(slNodePred.refCrdtKey);

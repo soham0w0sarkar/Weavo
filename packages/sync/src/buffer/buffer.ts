@@ -5,6 +5,7 @@ import {
   type InsertOperation,
   type DeleteOperation,
   type Operation,
+  type AppliedOp,
   apply,
   type OperationId,
 } from "@repo/core";
@@ -50,22 +51,22 @@ export const addToBuffer = (
 export const flush = (
   doc: Document,
   unblockedKey: Operation,
-): Operation[] => {
+): AppliedOp[] => {
   if (unblockedKey.type === "delete") {
     pendingDeleteOps.delete(toKey(unblockedKey.target));
     return [];
   }
 
-  const operations = [];
+  const operations: AppliedOp[] = [];
   const waitingQueue = [...(waiting.get(toKey(unblockedKey.id)) ?? [])];
 
   while (waitingQueue.length) {
     const op = waitingQueue.shift()!;
     if (!canApply(doc, op)) continue;
 
-    apply(doc, op);
+    const index = apply(doc, op);
     cleanUp(op);
-    operations.push(op);
+    operations.push({ op, index });
 
     const next = waiting.get(toKey(op.id)) ?? [];
     waitingQueue.push(...next);

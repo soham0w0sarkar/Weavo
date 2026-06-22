@@ -7,14 +7,17 @@ import {
 } from "../skipList";
 import type { Document } from "./types";
 
-export const apply = (doc: Document, op: Operation) => {
+export const apply = (doc: Document, op: Operation): number => {
   if (op.type === "insert") {
     doc.counter = Number(doc.counter) + 1;
     crdtInsert(doc.store, op);
     const idxOfLeft = findIndex(doc.skipList, op.leftOrigin);
     indexingInsert(doc.skipList, idxOfLeft + 1, op.id);
-  } else {
-    crdtRemove(doc.store, op);
-    indexingRemove(doc.skipList, op.target);
+    return idxOfLeft + 1;
   }
+
+  const index = findIndex(doc.skipList, op.target);
+  crdtRemove(doc.store, op);
+  indexingRemove(doc.skipList, op.target);
+  return index;
 };

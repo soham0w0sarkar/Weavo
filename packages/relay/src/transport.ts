@@ -59,11 +59,11 @@ const handleIncomingOp = (
   if (isOpPresent(doc.store, op)) return;
 
   if (canApply(doc, op)) {
-    apply(doc, op);
-    onApplied(op);
+    const index = apply(doc, op);
+    onApplied(op, index);
     const appliedOps = flush(doc, op);
 
-    appliedOps.forEach((op) => onApplied(op));
+    appliedOps.forEach(({ op, index }) => onApplied(op, index));
 
     update(sv, op.type === "delete" ? op.target : op.id);
   } else {
@@ -107,9 +107,6 @@ const handleSyncRes = (
   onApplied: OnApplied,
 ) => {
   const isMinePresent = clientIds.includes(opClientId);
-
-  console.log(clientIds);
-  console.log(opClientId);
 
   if (isMinePresent) {
     ops.map((op) => {
