@@ -7,10 +7,10 @@ const nextConfig = {
   basePath,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   transpilePackages: [
-    "@repo/relay",
-    "@repo/core",
-    "@repo/sync",
-    "@repo/transport",
+    "@relay/client",
+    "@relay/code",
+    "@relay/sync",
+    "@relay/transport",
   ],
   images: {
     unoptimized: true,
