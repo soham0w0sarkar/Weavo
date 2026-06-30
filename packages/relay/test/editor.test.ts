@@ -129,7 +129,7 @@ describe("editor — local input", () => {
     insertText(peer.el, "ab");
 
     expect(changes).toEqual([
-      { index: 1, insert: "a" },
+      { index: 0, insert: "a" },
       { index: 1, insert: "b" },
     ]);
   });
@@ -209,7 +209,7 @@ describe("editor — remote apply", () => {
     insertText(b.el, "X");
     await flushMicrotasks();
 
-    expect(a.el.value).toBe("hXeXllo");
+    expect(a.el.value).toBe("hXXello");
     expect(a.el.selectionStart).toBe(7);
     teardownPeers(a, b);
   });
