@@ -13,12 +13,12 @@ export const createSkipList = (): SkipList => {
 export const findIndex = (sl: SkipList, id: OperationId): number => {
   const targetKey = toKey(id);
   let index = 0;
-  let current = sl.head.next[0];
+  let current: SkipListNode | null = sl.head.next[0] ?? null;
 
   while (current) {
     if (current.refCrdtKey === targetKey) return index;
     index++;
-    current = current.next[0];
+    current = current.next[0] ?? null;
   }
 
   return -1;
@@ -30,9 +30,9 @@ export const findByIndex = (
 ): SkipListNode | null => {
   if (targetIndex < 0 || targetIndex >= sl.length) return null;
 
-  let current = sl.head.next[0];
+  let current: SkipListNode | null = sl.head.next[0] ?? null;
   for (let i = 0; i < targetIndex && current; i++) {
-    current = current.next[0];
+    current = current.next[0] ?? null;
   }
 
   return current;
@@ -50,7 +50,7 @@ export const insert = (
 
   const newNode = createSkipListNode(toKey(refCrdtId), 1);
   sl.nodeMap.set(toKey(refCrdtId), newNode);
-  newNode.next[0] = pred.next[0];
+  newNode.next[0] = pred.next[0] ?? null;
   pred.next[0] = newNode;
   sl.length++;
   return newNode;
@@ -65,7 +65,7 @@ export const remove = (sl: SkipList, refCrdtId: OperationId): boolean => {
   const target = pred.next[0];
   if (!target || target.refCrdtKey !== toKey(refCrdtId)) return false;
 
-  pred.next[0] = target.next[0];
+  pred.next[0] = target.next[0] ?? null;
   sl.length--;
   sl.nodeMap.delete(toKey(refCrdtId));
   return true;
