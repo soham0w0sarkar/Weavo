@@ -2,6 +2,8 @@
 
 > A deterministic, CRDT-based collaboration engine with fast indexing and a minimal API.
 
+![Relay demo — two editors syncing over WebSocket](docs/assets/relay-demo.gif)
+
 ---
 
 ## ✨ Overview
