@@ -1,29 +1,46 @@
 {
   "name": "@repo/transport",
+  "version": "0.1.0",
+  "description": "WebSocket transport layer for Relay",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./src/index.ts",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soham0w0sarkar/Relay.git",
+    "directory": "packages/transport"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "build": "tsup src/index.ts --format cjs,esm --dts",
+    "prepublishOnly": "bun run build",
     "test": "bun test"
   },
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts",
-      "default": "./src/index.ts"
-    }
+  "dependencies": {
+    "@repo/core": "workspace:*",
+    "@repo/sync": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "fast-check": "^4.6.0",
+    "tsup": "^8.5.1",
     "typescript": "5.9.2"
-  },
-  "dependencies": {
-    "@repo/core": "workspace:*",
-    "@repo/sync": "workspace:*",
-    "tsup": "^8.5.1"
   }
 }
