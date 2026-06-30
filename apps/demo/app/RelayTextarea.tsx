@@ -3,13 +3,7 @@
 import { useEffect, useRef } from "react";
 import { createRelay } from "@relay/client";
 
-export function RelayTextarea({
-  label,
-  relayUrl,
-}: {
-  label: string;
-  relayUrl: string;
-}) {
+export function RelayTextarea({ relayUrl }: { relayUrl: string }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -27,13 +21,13 @@ export function RelayTextarea({
 
   return (
     <label className="editor">
-      <span className="editor-label">{label}</span>
+      <span className="editor-label">Editor</span>
       <textarea
         ref={textareaRef}
         className="editor-textarea"
         defaultValue=""
-        placeholder="Type here — changes sync to the other box"
-        rows={8}
+        placeholder="Type here — changes sync with anyone in this room"
+        rows={12}
       />
     </label>
   );
