@@ -1,301 +1,224 @@
 # Relay
 
-> A deterministic, CRDT-based collaboration engine with fast indexing and a minimal API.
+> Tiny, framework-agnostic real-time collaborative text editing.
 
 ![Relay demo — two editors syncing over WebSocket](docs/assets/relay-demo.gif)
+---
+
+Relay turns any native `<textarea>` into a collaborative editor with a single function call.
+
+No CRDT knowledge. No editor framework. No React dependency. Just bind a textarea, connect to a room, and every participant stays in sync.
+
+**Demo:** https://soham0w0sarkar.github.io/Relay/
 
 ---
 
-## ✨ Overview
+## Features
 
-Relay is a modular, operation-based collaboration system designed for building real-time editors.
-
-It is built around a simple idea:
-
-```
-state + operation → new state
-```
-
-Relay focuses on:
-
-* **Deterministic CRDT merging**
-* **Efficient text indexing (skip list)**
-* **Minimal public API**
-* **Layered, extensible architecture**
+- ⚡ Bind any native `HTMLTextAreaElement`
+- 🔄 Automatic real-time synchronization
+- 🧠 Conflict-free concurrent editing
+- 🎯 Cursor/selection preservation during remote edits
+- 📦 Tiny, dependency-light client
+- 🌐 Works with any compatible Relay WebSocket server
+- 🧩 Framework agnostic (React, Vue, Svelte, Solid, Vanilla JS...)
 
 ---
 
-## 🧠 Core Philosophy
+## Installation
 
-Relay treats collaboration as a **state machine**:
-
-* The document is just **data**
-* Changes are expressed as **operations**
-* The system evolves via **pure transitions**
-
-```
-Document = state
-apply()   = transition
-getText() = projection
+```bash
+npm install @relay/client
 ```
 
----
+or
 
-## 🔥 Features
-
-* ⚡ Operation-based CRDT (no OT)
-* 🔁 Deterministic conflict resolution
-* 📦 Minimal API surface
-* 🚀 O(log n) indexing via skip list
-* 🪦 Tombstone-based deletion
-* 🔌 Transport-agnostic sync layer
-* 🧩 Editor-agnostic core
-
----
-
-## 📦 Monorepo Structure
-
+```bash
+pnpm add @relay/client
 ```
-relay/
-├── apps/
-│   ├── demo/
-│   └── playground/
-│
-├── packages/
-│   ├── core/        → CRDT engine
-│   ├── sync/        → replica coordination
-│   ├── transport/   → networking
-│   ├── presence/    → cursors, awareness
-│   └── react/       → UI bindings
+
+or
+
+```bash
+bun add @relay/client
 ```
 
 ---
 
-## 🏗️ Architecture
-
-```
-Editor UI
-   ↓
-React bindings
-   ↓
-Presence
-   ↓
-Transport
-   ↓
-Sync
-   ↓
-Core (CRDT engine)
-```
-
-### Layer Responsibilities
-
-| Layer     | Responsibility                  |
-| --------- | ------------------------------- |
-| core      | State + operations (CRDT logic) |
-| sync      | Replica reconciliation          |
-| transport | Message delivery                |
-| presence  | Ephemeral user state            |
-| react     | UI integration                  |
-
----
-
-## 🧩 Core API
-
-Relay intentionally exposes a **minimal API**:
+## Quick Start
 
 ```ts
-createDocument()
-apply(doc, operation)
-getText(doc)
+import { createRelay } from "@relay/client";
+
+const relay = createRelay(
+  "wss://your-server.example.com?room=my-room"
+);
+
+const textarea = document.querySelector("textarea")!;
+
+const dispose = relay.bind(textarea);
 ```
 
-### Example
+That's it.
+
+Every edit made inside the textarea is synchronized with everyone connected to the same room.
+
+---
+
+## API
+
+### `createRelay(urlOrTransport)`
+
+Creates a Relay document.
 
 ```ts
-const doc = createDocument()
-
-const next = apply(doc, {
-  type: "insert",
-  position: 0,
-  content: "H"
-})
-
-console.log(getText(next)) // "H"
+const relay = createRelay(
+  "wss://localhost:8080?room=notes"
+);
 ```
+
+You may also provide a custom transport implementation instead of a URL.
 
 ---
 
-## 🧠 Data Model
+### `relay.bind(textarea)`
 
-### CRDT Node (source of truth)
-
-```
-{
-  id: (clientId, clock)
-  content: string
-  deleted: boolean
-}
-```
-
-* Globally unique
-* Deterministically ordered
-* Never physically removed (tombstones)
-
----
-
-### Skip List (index layer)
-
-```
-{
-  ref → CRDT node
-  next[]
-  span[]
-}
-```
-
-* Used for fast index lookup
-* Not synced across peers
-* Rebuilt locally
-* Level 0 = visible ordering
-
----
-
-## ⚠️ Important Design Rules
-
-### 1. Identity is CRDT-owned
-
-```
-id = (clientId, clock)
-```
-
-Skip list nodes **must not introduce new IDs**.
-
----
-
-### 2. Skip list is an index, not storage
-
-* CRDT = truth
-* Skip list = performance layer
-
----
-
-### 3. Deletes are tombstones
-
-```
-node.deleted = true
-```
-
-* Nodes are not removed
-* Index spans are adjusted instead
-
----
-
-### 4. Operations are the only source of change
-
-```
-No direct mutation
-Only apply(operation)
-```
-
----
-
-## ✍️ Input Handling
-
-User input (e.g. `<textarea>` or editor) produces:
-
-```
-InputEvent → Operation → apply()
-```
-
-Example:
+Binds a native textarea to the collaborative document.
 
 ```ts
-{
-  type: "insert",
-  position: 5,
-  content: "a"
-}
+const cleanup = relay.bind(textarea);
+```
+
+Returns a cleanup function.
+
+```ts
+cleanup();
 ```
 
 ---
 
-## ⚡ Performance
+### `relay.subscribe(listener)`
 
-Relay treats performance as a first-class concern.
+Listen for document changes.
 
-### Indexing
+```ts
+const unsubscribe = relay.subscribe((change) => {
+  console.log(change);
+});
+```
 
-* Skip list with spans
-* Enables:
+Useful for:
 
-  * index → node lookup in **O(log n)**
-  * fast insert/delete
-
-### CRDT Optimizations (inspired by Yjs)
-
-* Merge adjacent inserts
-* Remove content from deleted nodes
-* Optional garbage collection of tombstones
+- analytics
+- persistence
+- live previews
+- custom UI updates
 
 ---
 
-## 🔄 Sync Model
+## How it Works
 
-Relay uses an operation-based sync protocol.
+Relay observes browser input events, converts them into editing operations, synchronizes those operations over WebSockets, and automatically applies incoming changes while preserving the user's current cursor and selection whenever possible.
 
-### State Vector
+From the application's perspective, it's simply:
 
 ```
-clientId → clock
+User Input
+      ↓
+Relay
+      ↓
+WebSocket
+      ↓
+Everyone Else
 ```
 
-Used to:
+No manual diffing.
 
-* determine missing operations
-* sync efficiently between peers
+No reconciliation logic.
+
+No polling.
 
 ---
 
-## 💾 Persistence Strategy
+## Framework Example
 
-Relay does **not manage storage**.
+### React
 
-Instead:
+```tsx
+const relay = createRelay(url);
 
+useEffect(() => {
+    if (!ref.current) return;
+    return relay.bind(ref.current);
+}, []);
 ```
-DB → load document
-Relay → sync live ops
-Client → persist final state
+
+Because Relay works directly with the DOM, it can be used with virtually any frontend framework.
+
+---
+
+## Browser Support
+
+Modern browsers supporting:
+
+- WebSocket
+- beforeinput events
+- HTMLTextAreaElement
+- ES Modules
+
+---
+
+## Philosophy
+
+Relay intentionally focuses on one thing:
+
+> Make collaborative textareas ridiculously simple.
+
+It does **not** attempt to become:
+
+- a rich text editor
+- an editor framework
+- a UI toolkit
+
+Instead, Relay provides a reliable synchronization layer that can be integrated anywhere.
+
+---
+
+## Packages
+
+This repository is a monorepo containing:
+
+| Package | Description |
+|----------|-------------|
+| `@relay/client` | Browser client |
+| `@relay/code` | Collaborative editing engine |
+| `@relay/sync` | Synchronization protocol |
+| `@relay/transport` | Transport abstraction |
+
+---
+
+## Development
+
+```bash
+bun install
+
+bun run dev
+```
+
+Build all packages:
+
+```bash
+bun run build
+```
+
+Run the demo:
+
+```bash
+bun run dev
 ```
 
 ---
 
-## 🧠 Mental Model
+## License
 
-```
-Relay = CRDT engine + sync + transport
-
-core       → math
-sync       → coordination
-transport  → pipes
-presence   → UX
-react      → integration
-```
-
----
-
-## 🚀 Future Work
-
-* Rich text support
-* Editor bindings (ProseMirror, Slate, etc.)
-* Better GC strategies
-* Binary encoding for ops
-* Undo/redo layer
-
----
-
-## 🧩 Summary
-
-Relay is:
-
-> A deterministic CRDT state machine with a skip-list index layered on top for fast collaborative editing.
+MIT
