@@ -18,7 +18,7 @@ Open [http://localhost:3000](http://localhost:3000). Copy the room link and open
 
 ## Deploy to GitHub Pages
 
-The demo is a static Next.js export deployed from `main` via [`.github/workflows/deploy-demo.yml`](../../.github/workflows/deploy-demo.yml).
+The demo is a static Next.js export deployed from `main` via [`.github/workflows/nextjs.yml`](../../.github/workflows/nextjs.yml).
 
 **Live URL:** [https://soham0w0sarkar.github.io/Relay/](https://soham0w0sarkar.github.io/Relay/)
 
@@ -30,12 +30,11 @@ The demo is a static Next.js export deployed from `main` via [`.github/workflows
 
 ### Deploy
 
-Push to `main`, or run **Deploy demo to GitHub Pages** from the Actions tab.
+Push to `main`, or run **Deploy Relay demo to GitHub Pages** from the Actions tab.
 
 ### Local Pages build
 
 ```bash
-cd apps/demo
 NEXT_STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH=/Relay \
   NEXT_PUBLIC_RELAY_WS_URL=wss://your-relay.example.com \
   bun run build:pages
