@@ -9,7 +9,6 @@ import type { Document } from "./types";
 
 export const apply = (doc: Document, op: Operation): number => {
   if (op.type === "insert") {
-    doc.counter = Number(doc.counter) + 1;
     crdtInsert(doc.store, op);
     const idxOfLeft = findIndex(doc.skipList, op.leftOrigin);
     indexingInsert(doc.skipList, idxOfLeft + 1, op.id);

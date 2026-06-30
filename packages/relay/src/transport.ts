@@ -65,7 +65,9 @@ const handleIncomingOp = (
 
     appliedOps.forEach(({ op, index }) => onApplied(op, index));
 
-    update(sv, op.type === "delete" ? op.target : op.id);
+    if(op.type === "insert") {
+      update(sv, op.id);
+    }
   } else {
     addToBuffer(doc, op);
   }

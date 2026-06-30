@@ -8,10 +8,13 @@ export default function Home() {
         <div className={styles.demo}>
           <h1 className={styles.title}>Relay demo</h1>
           <p className={styles.subtitle}>
-            Collaborative editor over WebSocket. Open this page in two tabs to
-            see changes sync live.
+            Two editors sharing one document over WebSocket. Type in either box
+            to see changes sync live.
           </p>
-          <RelayTextarea label="Editor" />
+          <div className={styles.editors}>
+            <RelayTextarea label="Editor A" />
+            <RelayTextarea label="Editor B" />
+          </div>
         </div>
       </main>
     </div>

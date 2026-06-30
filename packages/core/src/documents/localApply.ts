@@ -20,6 +20,7 @@ const buildOpFromLocalInput = (
   for (let i = 0; i < insertedLength; i++) {
     const op = buildOp(doc, position + i, "ins", insertedText[i]);
     applied.push({ op, index: apply(doc, op) });
+    doc.counter++;
   }
 
   for (let i = 0; i < deletedLength; i++) {
@@ -90,6 +91,10 @@ export const buildOp = (
   type: "del" | "ins",
   content: string | null = null,
 ): Operation => {
+  console.log(position,
+    type,
+    content);
+
   if (type === "ins") {
     const predIndex = position - 1;
     const slNodePred =

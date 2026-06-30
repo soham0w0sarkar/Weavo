@@ -34,3 +34,15 @@
     color: #a3a3a3;
   }
 }
+
+.editors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 720px) {
+  .editors {
+    grid-template-columns: 1fr;
+  }
+}

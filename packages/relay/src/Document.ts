@@ -45,7 +45,9 @@ export const createRelay = (url: string) => {
     const applied = localInput(event, doc, before);
     if (!applied) return;
     applied.forEach(({ op, index }) => {
-      update(sv, op.type === "insert" ? op.id : op.target);
+      if(op.type === "insert") {
+        update(sv, op.id);
+      }
       emitChange(toTextChange(op, index));
       transport.send({ type: "op", op });
     });
