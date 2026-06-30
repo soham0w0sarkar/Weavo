@@ -1,6 +1,6 @@
 {
-  "name": "@repo/sync",
-  "version": "0.1.0",
+  "name": "@relay/sync",
+  "version": "1.0.0",
   "description": "State-vector sync for Relay CRDT operations",
   "type": "module",
   "license": "MIT",
@@ -30,11 +30,10 @@
   "scripts": {
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "prepublishOnly": "bun run build",
     "test": "bun test"
   },
   "dependencies": {
-    "@repo/core": "workspace:*"
+    "@relay/code": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

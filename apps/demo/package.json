@@ -12,7 +12,7 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@repo/relay": "workspace:*",
+    "@relay/client": "workspace:*",
     "@repo/ui": "*",
     "next": "16.1.5",
     "react": "^19.2.0",

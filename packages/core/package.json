@@ -1,6 +1,6 @@
 {
-  "name": "@repo/core",
-  "version": "0.1.0",
+  "name": "@relay/code",
+  "version": "1.0.0",
   "description": "CRDT core for Relay collaborative text editing",
   "type": "module",
   "license": "MIT",
@@ -30,7 +30,6 @@
   "scripts": {
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "prepublishOnly": "bun run build",
     "test": "bun test"
   },
   "devDependencies": {
