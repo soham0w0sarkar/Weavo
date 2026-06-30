@@ -1,8 +1,6 @@
 {
   "name": "Relay",
-  "private": true,
   "devDependencies": {
-    "@changesets/cli": "^2.29.5",
     "prettier": "^3.7.4",
     "turbo": "^2.8.7",
     "typescript": "5.9.2"
@@ -11,16 +9,13 @@
     "node": ">=18"
   },
   "packageManager": "bun@1.3.9",
+  "private": true,
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types",
-    "test": "turbo run test",
-    "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "turbo run build --filter=@relay/code --filter=@relay/sync --filter=@relay/transport --filter=@relay/client && changeset publish"
+    "check-types": "turbo run check-types"
   },
   "workspaces": [
     "apps/*",

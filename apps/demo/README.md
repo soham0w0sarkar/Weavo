@@ -1,6 +1,6 @@
 # Relay Demo
 
-Collaborative text editing demo using `@relay/client`.
+Collaborative text editing demo using `@repo/relay`.
 
 Each visit gets a random room UUID in the URL (`?room=…`). Share that link so others join the same document.
 
@@ -49,11 +49,11 @@ See `vercel.json`. Set root directory to `apps/demo` and `NEXT_PUBLIC_RELAY_WS_U
 
 ## Environment
 
-| Variable                   | Default               | Notes                                                                                                                 |
-| -------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Variable | Default | Notes |
+|----------|---------|-------|
 | `NEXT_PUBLIC_RELAY_WS_URL` | `ws://localhost:8080` | Relay WebSocket **base** URL (room UUID appended client-side). Set `RELAY_WS_URL` secret in GitHub Actions for Pages. |
-| `NEXT_STATIC_EXPORT`       | unset                 | Set to `1` for GitHub Pages static export                                                                             |
-| `NEXT_PUBLIC_BASE_PATH`    | `""`                  | Set to `/Relay` for this repo on GitHub Pages (`/${{ repository.name }}` in CI)                                       |
-| `PORT` (relay-server)      | `8080`                | Relay server only                                                                                                     |
+| `NEXT_STATIC_EXPORT` | unset | Set to `1` for GitHub Pages static export |
+| `NEXT_PUBLIC_BASE_PATH` | `""` | Set to `/Relay` for this repo on GitHub Pages (`/${{ repository.name }}` in CI) |
+| `PORT` (relay-server) | `8080` | Relay server only |
 
 GitHub Pages hosts the static UI only. The relay server must run elsewhere for sync to work in production.
