@@ -2,7 +2,7 @@
 
 Collaborative text editing demo using `@relay/client`.
 
-Each visit gets a random room UUID in the URL (`?room=…`). Share that link so others join the same document.
+Each session uses a room ID stored in the browser — no query params in the URL. Generate a room, copy the ID, and others paste it under **Join**.
 
 ## Run locally
 

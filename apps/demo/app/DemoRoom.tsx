@@ -1,70 +1,74 @@
 "use client";
 
-import { Suspense, useCallback, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { RelayTextarea } from "./RelayTextarea";
 import { buildRelayRoomUrl } from "./lib/relayUrl";
-import { createRoomId, parseRoomId } from "./lib/roomId";
+import {
+  createRoomId,
+  loadStoredRoomId,
+  parseRoomId,
+  storeRoomId,
+} from "./lib/roomId";
 import styles from "./page.module.css";
 
-function DemoRoomContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const roomFromUrl = searchParams.get("room");
-
+export function DemoRoom() {
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const [joinInput, setJoinInput] = useState("");
   const [joinError, setJoinError] = useState("");
-  const [copied, setCopied] = useState<"id" | "link" | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const shareUrl = useMemo(() => {
-    if (!roomFromUrl || typeof window === "undefined") return "";
-    const url = new URL(window.location.href);
-    url.searchParams.set("room", roomFromUrl);
-    return url.toString();
-  }, [roomFromUrl]);
-
-  const goToRoom = useCallback(
-    (roomId: string) => {
-      const url = new URL(window.location.href);
-      url.searchParams.set("room", roomId);
-      router.push(`${url.pathname}${url.search}`);
-    },
-    [router],
-  );
-
-  const createRoom = useCallback(() => {
-    setJoinError("");
-    goToRoom(createRoomId());
-  }, [goToRoom]);
-
-  const joinRoom = useCallback(() => {
-    const roomId = parseRoomId(joinInput);
-    if (!roomId) {
-      setJoinError("Paste a room ID or share link");
-      return;
-    }
-    setJoinError("");
-    goToRoom(roomId);
-  }, [goToRoom, joinInput]);
-
-  const copy = useCallback(async (kind: "id" | "link", text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(kind);
-    window.setTimeout(() => setCopied(null), 2000);
+  useEffect(() => {
+    setRoomId(loadStoredRoomId());
+    setReady(true);
   }, []);
 
-  if (!roomFromUrl) {
+  const enterRoom = useCallback((id: string) => {
+    storeRoomId(id);
+    setRoomId(id);
+    setJoinInput("");
+    setJoinError("");
+  }, []);
+
+  const createRoom = useCallback(() => {
+    enterRoom(createRoomId());
+  }, [enterRoom]);
+
+  const joinRoom = useCallback(() => {
+    const id = parseRoomId(joinInput);
+    if (!id) {
+      setJoinError("Enter a valid room ID");
+      return;
+    }
+    enterRoom(id);
+  }, [enterRoom, joinInput]);
+
+  const leaveRoom = useCallback(() => {
+    storeRoomId(null);
+    setRoomId(null);
+  }, []);
+
+  const copyId = useCallback(async () => {
+    if (!roomId) return;
+    await navigator.clipboard.writeText(roomId);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  }, [roomId]);
+
+  if (!ready) {
+    return <p className={styles.subtitle}>Loading…</p>;
+  }
+
+  if (!roomId) {
     return (
       <div className={styles.lobby}>
         <p className={styles.subtitle}>
-          Create a room and share the ID, or join one someone sent you.
+          Create a room and copy the ID for someone else to join.
         </p>
 
         <div className={styles.lobbyPanel}>
           <h2 className={styles.panelTitle}>Create</h2>
-          <p className={styles.panelHint}>
-            Generates a new room and opens the editor.
-          </p>
+          <p className={styles.panelHint}>Opens a new room with one editor.</p>
           <button type="button" className={styles.primaryButton} onClick={createRoom}>
             Generate room
           </button>
@@ -72,14 +76,12 @@ function DemoRoomContent() {
 
         <div className={styles.lobbyPanel}>
           <h2 className={styles.panelTitle}>Join</h2>
-          <p className={styles.panelHint}>
-            Paste a room ID or full share link.
-          </p>
+          <p className={styles.panelHint}>Paste the room ID you were given.</p>
           <div className={styles.joinRow}>
             <input
               type="text"
               className={styles.roomInput}
-              placeholder="Room ID or link"
+              placeholder="e.g. ab817c66-908e-43f4-ad47-3e7bd52b3385"
               value={joinInput}
               onChange={(e) => {
                 setJoinInput(e.target.value);
@@ -99,45 +101,27 @@ function DemoRoomContent() {
     );
   }
 
-  const relayUrl = buildRelayRoomUrl(roomFromUrl);
-
   return (
     <>
       <div className={styles.room}>
         <p className={styles.subtitle}>
-          Share the room ID so others can join and edit together.
+          Copy the room ID — others paste it under Join on this page.
         </p>
         <div className={styles.roomBar}>
-          <code className={styles.roomId}>{roomFromUrl}</code>
-          <button
-            type="button"
-            className={styles.copyButton}
-            onClick={() => copy("id", roomFromUrl)}
-          >
-            {copied === "id" ? "Copied" : "Copy ID"}
-          </button>
-          <button
-            type="button"
-            className={styles.copyButton}
-            onClick={() => copy("link", shareUrl)}
-          >
-            {copied === "link" ? "Copied" : "Copy link"}
+          <code className={styles.roomId}>{roomId}</code>
+          <button type="button" className={styles.copyButton} onClick={copyId}>
+            {copied ? "Copied" : "Copy ID"}
           </button>
           <button type="button" className={styles.copyButton} onClick={createRoom}>
             New room
           </button>
+          <button type="button" className={styles.copyButton} onClick={leaveRoom}>
+            Leave
+          </button>
         </div>
       </div>
 
-      <RelayTextarea relayUrl={relayUrl} />
+      <RelayTextarea relayUrl={buildRelayRoomUrl(roomId)} />
     </>
-  );
-}
-
-export function DemoRoom() {
-  return (
-    <Suspense fallback={<p className={styles.subtitle}>Loading…</p>}>
-      <DemoRoomContent />
-    </Suspense>
   );
 }
