@@ -7,6 +7,11 @@ export function createRoomId(): string {
   return crypto.randomUUID();
 }
 
+export function shortRoomId(id: string): string {
+  if (id.length <= 16) return id;
+  return `${id.slice(0, 8)}…${id.slice(-4)}`;
+}
+
 export function isRoomId(value: string): boolean {
   return UUID.test(value.trim());
 }

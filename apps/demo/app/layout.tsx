@@ -12,8 +12,14 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Relay Demo",
+  title: "Relay",
   description: "Collaborative text editing with Relay",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
