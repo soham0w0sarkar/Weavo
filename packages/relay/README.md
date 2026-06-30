@@ -1,4 +1,4 @@
-# @relay/client
+# @repo/relay
 
 Real-time collaborative text editing for the browser. Bind a `<textarea>`, connect to a WebSocket room, and edits sync automatically — including cursor-safe remote updates and concurrent middle-of-document changes.
 
@@ -7,15 +7,15 @@ Built on a deterministic CRDT under the hood, so peers converge without a centra
 ## Install
 
 ```bash
-npm install @relay/client
+npm install @repo/relay
 ```
 
-This package expects peer dependencies from the Relay stack (`@relay/code`, `@relay/sync`, `@relay/transport`). In this monorepo they are wired automatically; when publishing standalone, install the matching versions together.
+This package expects peer dependencies from the Relay stack (`@repo/core`, `@repo/sync`, `@repo/transport`). In this monorepo they are wired automatically; when publishing standalone, install the matching versions together.
 
 ## Quick start
 
 ```ts
-import { createRelay } from "@relay/client";
+import { createRelay } from "@repo/relay";
 
 const roomId = crypto.randomUUID();
 const relay = createRelay(`ws://localhost:8080?room=${roomId}`);
@@ -39,7 +39,7 @@ That is the full integration for a plain textarea. Relay listens to native input
 
 ```tsx
 import { useEffect, useRef } from "react";
-import { createRelay } from "@relay/client";
+import { createRelay } from "@repo/relay";
 
 export function CollaborativeTextarea({ roomUrl }: { roomUrl: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -111,14 +111,11 @@ You do not manage operation IDs, state vectors, or index mapping yourself for th
 
 ## Custom transport
 
-For unit tests or non-WebSocket backends, pass a transport that implements the `RawTransport` interface from `@relay/transport`:
+For unit tests or non-WebSocket backends, pass a transport that implements the `RawTransport` interface from `@repo/transport`:
 
 ```ts
-import { createRelay } from "@relay/client";
-import {
-  createTransport,
-  type RawTransport,
-} from "@relay/transport";
+import { createRelay } from "@repo/relay";
+import { createTransport, type RawTransport } from "@repo/transport";
 
 const raw: RawTransport = {
   connect() {

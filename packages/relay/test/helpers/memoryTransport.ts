@@ -1,4 +1,4 @@
-import type { webSocketTransport } from "@relay/transport";
+import type { webSocketTransport } from "@repo/transport";
 
 type Handler = () => void;
 type MessageHandler = (data: string) => void;

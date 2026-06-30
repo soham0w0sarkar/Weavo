@@ -1,6 +1,6 @@
 {
-  "name": "@relay/transport",
-  "version": "1.0.0",
+  "name": "@repo/transport",
+  "version": "0.1.0",
   "description": "WebSocket transport layer for Relay",
   "type": "module",
   "license": "MIT",
@@ -30,11 +30,12 @@
   "scripts": {
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "build": "tsup src/index.ts --format cjs,esm --dts",
+    "prepublishOnly": "bun run build",
     "test": "bun test"
   },
   "dependencies": {
-    "@relay/code": "workspace:*",
-    "@relay/sync": "workspace:*"
+    "@repo/core": "workspace:*",
+    "@repo/sync": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

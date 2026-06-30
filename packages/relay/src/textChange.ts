@@ -1,4 +1,4 @@
-import type { Operation } from "@relay/code";
+import type { Operation } from "@repo/core";
 import type { TextChange } from "./types";
 
 export const applyTextChange = (value: string, change: TextChange): string => {
