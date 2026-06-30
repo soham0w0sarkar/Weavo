@@ -91,6 +91,32 @@ describe("editor — local input", () => {
     expect(peer.el.value).toBe("hio");
   });
 
+  test("deletes the full selection with backspace", async () => {
+    room = new MemoryRoom();
+    peer = createPeer(room);
+    await flushMicrotasks();
+
+    seedText(peer.el, "hello");
+    moveCursor(peer.el, 0, 5);
+    backspace(peer.el);
+
+    expect(peer.el.value).toBe("");
+    expect(peer.el.selectionStart).toBe(0);
+  });
+
+  test("deletes the full selection with delete", async () => {
+    room = new MemoryRoom();
+    peer = createPeer(room);
+    await flushMicrotasks();
+
+    seedText(peer.el, "hello");
+    moveCursor(peer.el, 0, 5);
+    deleteForward(peer.el);
+
+    expect(peer.el.value).toBe("");
+    expect(peer.el.selectionStart).toBe(0);
+  });
+
   test("emits text changes for local edits", async () => {
     room = new MemoryRoom();
     peer = createPeer(room);
@@ -149,6 +175,22 @@ describe("editor — remote apply", () => {
     await flushMicrotasks();
 
     expect(b.el.value).toBe("hell");
+    teardownPeers(a, b);
+  });
+
+  test("syncs select-all delete from the other peer", async () => {
+    const { a, b } = await createPeerPair();
+
+    moveCursor(a.el, 0);
+    insertText(a.el, "hello");
+    await flushMicrotasks();
+
+    moveCursor(a.el, 0, 5);
+    backspace(a.el);
+    await flushMicrotasks();
+
+    expect(a.el.value).toBe("");
+    expect(b.el.value).toBe("");
     teardownPeers(a, b);
   });
 

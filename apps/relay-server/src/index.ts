@@ -10,21 +10,50 @@ const getRoom = (room: string) => {
   return rooms.get(room)!;
 };
 
+const httpResponse = (body: string, status = 200) =>
+  new Response(body, {
+    status,
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "access-control-allow-origin": "*",
+    },
+  });
+
 Bun.serve<RoomData>({
   port: PORT,
   fetch(req, server) {
     const url = new URL(req.url);
+
+    if (req.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "GET, OPTIONS",
+          "access-control-allow-headers": "*",
+        },
+      });
+    }
+
+    if (url.pathname === "/health") {
+      return httpResponse("ok\n");
+    }
+
     const room = url.searchParams.get("room") ?? "default";
 
     if (server.upgrade(req, { data: { room } })) return undefined;
 
-    return new Response("Relay WebSocket server\n", { status: 200 });
+    return httpResponse(
+      `Relay WebSocket server\nConnect with ?room=<id>\nHealth: /health\n`,
+    );
   },
   websocket: {
     open(ws) {
       const peers = getRoom(ws.data.room);
       peers.add(ws);
-      console.log(`client joined room "${ws.data.room}" (${peers.size} connected)`);
+      console.log(
+        `client joined room "${ws.data.room}" (${peers.size} connected)`,
+      );
     },
     message(ws, message) {
       const peers = getRoom(ws.data.room);
@@ -41,7 +70,9 @@ Bun.serve<RoomData>({
       if (!peers) return;
       peers.delete(ws);
       if (peers.size === 0) rooms.delete(ws.data.room);
-      console.log(`client left room "${ws.data.room}" (${peers.size} connected)`);
+      console.log(
+        `client left room "${ws.data.room}" (${peers.size} connected)`,
+      );
     },
   },
 });

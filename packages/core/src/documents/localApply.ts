@@ -24,7 +24,7 @@ const buildOpFromLocalInput = (
   }
 
   for (let i = 0; i < deletedLength; i++) {
-    const op = buildOp(doc, position + i, "del");
+    const op = buildOp(doc, position, "del");
     applied.push({ op, index: apply(doc, op) });
   }
 
@@ -69,15 +69,15 @@ export const onInput = (
     case "deleteContentBackward":
     case "deleteContentForward":
     case "deleteByCut": {
-      return buildOpFromLocalInput(
-        doc,
-        "",
-        0,
-        deletedLength > 0 ? deletedLength : 1,
-        e.inputType === "deleteContentBackward"
-          ? before.start - 1
-          : before.start,
-      );
+      const deleteCount = deletedLength > 0 ? deletedLength : 1;
+      const deletePosition =
+        deletedLength > 0
+          ? before.start
+          : e.inputType === "deleteContentBackward"
+            ? before.start - 1
+            : before.start;
+
+      return buildOpFromLocalInput(doc, "", 0, deleteCount, deletePosition);
     }
 
     default:

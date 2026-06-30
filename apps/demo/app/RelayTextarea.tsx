@@ -3,24 +3,27 @@
 import { useEffect, useRef } from "react";
 import { createRelay } from "@repo/relay";
 
-const WS_URL =
-  process.env.NEXT_PUBLIC_RELAY_WS_URL ?? "ws://localhost:8080?room=demo";
-
-export function RelayTextarea({ label }: { label: string }) {
+export function RelayTextarea({
+  label,
+  relayUrl,
+}: {
+  label: string;
+  relayUrl: string;
+}) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
 
-    const relay = createRelay(WS_URL);
+    const relay = createRelay(relayUrl);
     const unbind = relay.bind(el);
 
     return () => {
       unbind();
       relay.disconnect();
     };
-  }, []);
+  }, [relayUrl]);
 
   return (
     <label className="editor">
@@ -34,4 +37,4 @@ export function RelayTextarea({ label }: { label: string }) {
       />
     </label>
   );
-};
+}

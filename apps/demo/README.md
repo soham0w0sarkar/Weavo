@@ -42,10 +42,10 @@ Static files are written to `apps/demo/out/`.
 
 ## Environment
 
-| Variable | Default | Notes |
-|----------|---------|-------|
+| Variable                   | Default                         | Notes                                               |
+| -------------------------- | ------------------------------- | --------------------------------------------------- |
 | `NEXT_PUBLIC_RELAY_WS_URL` | `ws://localhost:8080?room=demo` | Set `RELAY_WS_URL` secret in CI for production sync |
-| `NEXT_PUBLIC_BASE_PATH` | `""` | Set to `/Relay` for GitHub Pages |
-| `PORT` (relay-server) | `8080` | Local relay server only |
+| `NEXT_PUBLIC_BASE_PATH`    | `""`                            | Set to `/Relay` for GitHub Pages                    |
+| `PORT` (relay-server)      | `8080`                          | Local relay server only                             |
 
 GitHub Pages hosts the static UI only. Deploy `apps/relay-server` separately (Fly.io, Railway, etc.) and point `RELAY_WS_URL` at it for live collaboration on the hosted demo.

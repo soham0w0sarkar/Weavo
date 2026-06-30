@@ -1,5 +1,6 @@
 {
   "name": "@repo/relay",
+  "description": "Real-time collaborative text editing for the browser — bind a textarea, connect to a WebSocket room, edits sync automatically.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
