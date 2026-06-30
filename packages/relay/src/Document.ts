@@ -1,15 +1,25 @@
 import {
   createReplica,
   generateClientId,
+  getText,
   onInput as localInput,
   type Operation,
 } from "@repo/core";
-import { createTransport, createWebSocketTransport } from "@repo/transport";
+import {
+  createTransport,
+  createWebSocketTransport,
+  type RawTransport,
+} from "@repo/transport";
 import { manageTransport } from "./transport";
 import { update, type StateVector } from "@repo/sync";
 import { createSubscription } from "./Subscription";
-import { applyTextChange, toTextChange } from "./textChange";
-import { reconcileBefore, type InputSnapshot } from "./inputSnapshot";
+import { textChangeFromDiff, toTextChange } from "./textChange";
+import {
+  reconcileBefore,
+  transformPosition,
+  transformSnapshot,
+  type InputSnapshot,
+} from "./inputSnapshot";
 import type { TextChange } from "./types";
 
 const captureSnapshot = (el: HTMLTextAreaElement): InputSnapshot => ({
@@ -18,31 +28,46 @@ const captureSnapshot = (el: HTMLTextAreaElement): InputSnapshot => ({
   value: el.value,
 });
 
-export const createRelay = (url: string) => {
+export const createRelay = (urlOrTransport: string | RawTransport) => {
   const clientId = generateClientId();
 
   const doc = createReplica(clientId);
   const sv: StateVector = new Map();
-  const rawTransport = createWebSocketTransport(url);
+  const rawTransport =
+    typeof urlOrTransport === "string"
+      ? createWebSocketTransport(urlOrTransport)
+      : urlOrTransport;
   const transport = createTransport(rawTransport);
   const subscription = createSubscription();
 
   let before: InputSnapshot | null = null;
   let boundEl: HTMLTextAreaElement | null = null;
+  let pendingInput = false;
 
   const emitChange = (change: TextChange) => subscription.emit(change);
 
-  const applyRemoteToBound = (change: TextChange) => {
-    if (boundEl) boundEl.value = applyTextChange(boundEl.value, change);
+  const applyRemoteToBound = (prevText: string, newText: string) => {
+    const change = textChangeFromDiff(prevText, newText);
+    if (!change) return;
+
+    if (boundEl) {
+      const selectionStart = boundEl.selectionStart;
+      const selectionEnd = boundEl.selectionEnd;
+      boundEl.value = newText;
+      boundEl.selectionStart = transformPosition(selectionStart, change);
+      boundEl.selectionEnd = transformPosition(selectionEnd, change);
+      if (before) before = transformSnapshot(before, change);
+    }
     emitChange(change);
   };
 
-  const onApplied = (op: Operation, index: number) => {
-    applyRemoteToBound(toTextChange(op, index));
+  const onApplied = (_op: Operation, _index: number) => {
+    const prevText = boundEl?.value ?? "";
+    applyRemoteToBound(prevText, getText(doc.store));
   };
 
-  const processLocalInput = (event: InputEvent) => {
-    const applied = localInput(event, doc, before);
+  const processLocalInput = (event: InputEvent, snapshot: InputSnapshot) => {
+    const applied = localInput(event, doc, snapshot);
     if (!applied) return;
     applied.forEach(({ op, index }) => {
       if(op.type === "insert") {
@@ -62,21 +87,31 @@ export const createRelay = (url: string) => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Backspace" || event.key === "Delete") {
         before = captureSnapshot(el);
+        pendingInput = true;
       }
     };
 
     const onBeforeInput = (event: Event) => {
       before = captureSnapshot(event.target as HTMLTextAreaElement);
+      pendingInput = true;
     };
 
     const onInput = (event: Event) => {
       const inputEvent = event as InputEvent;
       if (!before) return;
-      before = reconcileBefore(before, el.value, inputEvent.inputType);
-      processLocalInput(inputEvent);
+      const snapshot = reconcileBefore(
+        before,
+        el.value,
+        inputEvent.inputType,
+        inputEvent.data,
+      );
+      before = snapshot;
+      processLocalInput(inputEvent, snapshot);
+      pendingInput = false;
     };
 
     const refreshSnapshot = () => {
+      if (pendingInput) return;
       before = captureSnapshot(el);
     };
 

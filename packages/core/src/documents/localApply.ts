@@ -91,10 +91,6 @@ export const buildOp = (
   type: "del" | "ins",
   content: string | null = null,
 ): Operation => {
-  console.log(position,
-    type,
-    content);
-
   if (type === "ins") {
     const predIndex = position - 1;
     const slNodePred =

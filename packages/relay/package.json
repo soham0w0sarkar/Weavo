@@ -14,11 +14,13 @@
   "scripts": {
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "test": "bun test"
+    "test": "bun test --preload ./test/setup.ts"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.10.6",
     "@repo/typescript-config": "workspace:*",
     "fast-check": "^4.6.0",
+    "happy-dom": "^20.10.6",
     "typescript": "5.9.2"
   },
   "dependencies": {
