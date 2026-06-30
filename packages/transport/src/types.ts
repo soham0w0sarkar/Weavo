@@ -1,5 +1,5 @@
-import type { ClientId, Operation } from "@repo/core";
-import type { StateVector, StateVectorWire } from "@repo/sync";
+import type { ClientId, Operation } from "@relay/code";
+import type { StateVector, StateVectorWire } from "@relay/sync";
 import type { webSocketTransport } from "./webSocketTransport/types";
 
 export type RawTransport = webSocketTransport;

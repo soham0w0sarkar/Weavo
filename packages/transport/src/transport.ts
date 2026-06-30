@@ -1,7 +1,7 @@
 import {
   decodeStateVector,
   encodeStateVector,
-} from "@repo/sync";
+} from "@relay/sync";
 import type { Message, RawTransport, Transport, WireMessage } from "./types";
 
 const encodeMessage = (message: Message): WireMessage => {

@@ -4,14 +4,14 @@ import {
   getText,
   onInput as localInput,
   type Operation,
-} from "@repo/core";
+} from "@relay/code";
 import {
   createTransport,
   createWebSocketTransport,
   type RawTransport,
-} from "@repo/transport";
+} from "@relay/transport";
 import { manageTransport } from "./transport";
-import { update, type StateVector } from "@repo/sync";
+import { update, type StateVector } from "@relay/sync";
 import { createSubscription } from "./Subscription";
 import { textChangeFromDiff, toTextChange } from "./textChange";
 import {

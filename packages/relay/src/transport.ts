@@ -8,7 +8,7 @@ import {
   type NodeStore,
   type Operation,
   type OperationId,
-} from "@repo/core";
+} from "@relay/code";
 import {
   addToBuffer,
   canApply,
@@ -16,8 +16,8 @@ import {
   missingOps,
   update,
   type StateVector,
-} from "@repo/sync";
-import type { Message, Transport } from "@repo/transport";
+} from "@relay/sync";
+import type { Message, Transport } from "@relay/transport";
 import type { OnApplied, PeersReq, TimerRef } from "./types";
 
 const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {

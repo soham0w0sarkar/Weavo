@@ -1,4 +1,4 @@
-import type { ClientId } from "@repo/core";
+import type { ClientId } from "@relay/code";
 import type { StateVector } from "./type";
 
 export type StateVectorWire = Record<ClientId, number>;

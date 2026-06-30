@@ -1,3 +1,3 @@
-import type { ClientId } from "@repo/core";
+import type { ClientId } from "@relay/code";
 
 export type StateVector = Map<ClientId, number>;

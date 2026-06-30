@@ -1,4 +1,4 @@
-import type { Document, OperationId } from "@repo/core";
+import type { Document, OperationId } from "@relay/code";
 import type { StateVector } from "./type";
 
 export const update = (sv: StateVector, id: OperationId) => {

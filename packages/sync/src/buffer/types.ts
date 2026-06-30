@@ -1,1 +1,1 @@
-export type { OperationKey, Operation } from "@repo/core";
+export type { OperationKey, Operation } from "@relay/code";
