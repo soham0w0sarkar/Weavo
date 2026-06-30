@@ -12,6 +12,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "build:pages": "turbo run build:pages --filter=demo",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

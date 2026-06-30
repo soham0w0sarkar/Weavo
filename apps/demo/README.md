@@ -1,6 +1,6 @@
 # Relay Demo
 
-Collaborative text editing demo using `@repo/relay`.
+Collaborative text editing demo using `@relay/client`.
 
 Each visit gets a random room UUID in the URL (`?room=…`). Share that link so others join the same document.
 

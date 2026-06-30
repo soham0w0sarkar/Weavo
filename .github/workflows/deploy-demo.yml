@@ -30,7 +30,6 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build static demo
-        working-directory: apps/demo
         env:
           NEXT_STATIC_EXPORT: "1"
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}

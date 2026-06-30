@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { createRelay } from "@repo/relay";
+import { createRelay } from "@relay/client";
 
 export function RelayTextarea({
   label,
