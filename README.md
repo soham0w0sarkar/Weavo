@@ -2,7 +2,12 @@
 
 > Tiny, framework-agnostic real-time collaborative text editing.
 
-![Relay demo — two editors syncing over WebSocket](docs/assets/relay-demo.gif)
+<p align="center">
+  <video src="docs/assets/relay-demo-mobile.mp4" autoplay loop muted playsinline height="420"></video>
+  &nbsp;
+  <video src="docs/assets/relay-demo-desktop.mp4" autoplay loop muted playsinline height="420"></video>
+</p>
+<p align="center"><sub>Mobile · Desktop — same room, live sync</sub></p>
 ---
 
 Relay turns any native `<textarea>` into a collaborative editor with a single function call.
