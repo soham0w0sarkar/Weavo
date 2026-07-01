@@ -3,9 +3,8 @@
 > Tiny, framework-agnostic real-time collaborative text editing.
 
 <p align="center">
-  <video src="docs/assets/relay-demo-mobile.mp4" autoplay loop muted playsinline height="420"></video>
-  &nbsp;
-  <video src="docs/assets/relay-demo-desktop.mp4" autoplay loop muted playsinline height="420"></video>
+  <img src="docs/assets/relay-demo-mobile.gif" height="420" alt="Relay demo on mobile" />
+  <img src="docs/assets/relay-demo-desktop.gif" height="420" alt="Relay demo on desktop" />
 </p>
 <p align="center"><sub>Mobile · Desktop — same room, live sync</sub></p>
 ---
