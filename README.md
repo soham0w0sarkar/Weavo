@@ -19,13 +19,13 @@ No CRDT knowledge. No editor framework. No React dependency. Just bind a textare
 
 ## Features
 
-- ⚡ Bind any native `HTMLTextAreaElement`
-- 🔄 Automatic real-time synchronization
-- 🧠 Conflict-free concurrent editing
-- 🎯 Cursor/selection preservation during remote edits
-- 📦 Tiny, dependency-light client
-- 🌐 Works with any compatible Relay WebSocket server
-- 🧩 Framework agnostic (React, Vue, Svelte, Solid, Vanilla JS...)
+- Bind any native `HTMLTextAreaElement`
+- Automatic real-time synchronization
+- Conflict-free concurrent editing
+- Cursor/selection preservation during remote edits
+- Tiny, dependency-light client
+- Works with any compatible Relay WebSocket server
+- Framework agnostic (React, Vue, Svelte, Solid, Vanilla JS...)
 
 ---
 
