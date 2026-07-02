@@ -54,9 +54,7 @@ bun add @weavo/client
 ```ts
 import { createWeavo } from "@weavo/client";
 
-const weavo = createWeavo(
-  "wss://your-server.example.com?room=my-room"
-);
+const weavo = createWeavo("wss://your-server.example.com?room=my-room");
 
 const textarea = document.querySelector("textarea")!;
 
@@ -76,9 +74,7 @@ Every edit made inside the textarea is synchronized with everyone connected to t
 Creates a Weavo document.
 
 ```ts
-const weavo = createWeavo(
-  "wss://localhost:8080?room=notes"
-);
+const weavo = createWeavo("wss://localhost:8080?room=notes");
 ```
 
 You may also provide a custom transport implementation instead of a URL.
@@ -152,8 +148,8 @@ No polling.
 const weavo = createWeavo(url);
 
 useEffect(() => {
-    if (!ref.current) return;
-    return weavo.bind(ref.current);
+  if (!ref.current) return;
+  return weavo.bind(ref.current);
 }, []);
 ```
 
@@ -192,12 +188,12 @@ Instead, Weavo provides a reliable synchronization layer that can be integrated 
 
 This repository is a monorepo containing:
 
-| Package | Description |
-|----------|-------------|
-| `@weavo/client` | Browser client |
-| `@weavo/code` | Collaborative editing engine |
-| `@weavo/sync` | Synchronization protocol |
-| `@weavo/transport` | Transport abstraction |
+| Package            | Description                  |
+| ------------------ | ---------------------------- |
+| `@weavo/client`    | Browser client               |
+| `@weavo/core`      | Collaborative editing engine |
+| `@weavo/sync`      | Synchronization protocol     |
+| `@weavo/transport` | Transport abstraction        |
 
 ---
 

@@ -1,4 +1,4 @@
-import type { ClientId } from "@weavo/code";
+import type { ClientId } from "@weavo/core";
 
 export type TimerRef = { current: ReturnType<typeof setTimeout> | undefined };
 
@@ -10,4 +10,4 @@ export type TextChange = {
   delete?: number;
 };
 
-export type { OnApplied } from "@weavo/code";
+export type { OnApplied } from "@weavo/core";

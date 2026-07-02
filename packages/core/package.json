@@ -1,5 +1,5 @@
 {
-  "name": "@weavo/code",
+  "name": "@weavo/core",
   "version": "1.0.0",
   "description": "CRDT core for Weavo collaborative text editing",
   "type": "module",

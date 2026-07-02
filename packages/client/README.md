@@ -10,7 +10,7 @@ Built on a deterministic CRDT under the hood, so peers converge without a centra
 npm install @weavo/client
 ```
 
-This package expects peer dependencies from the Weavo stack (`@weavo/code`, `@weavo/sync`, `@weavo/transport`). In this monorepo they are wired automatically; when publishing standalone, install the matching versions together.
+This package expects peer dependencies from the Weavo stack (`@weavo/core`, `@weavo/sync`, `@weavo/transport`). In this monorepo they are wired automatically; when publishing standalone, install the matching versions together.
 
 ## Quick start
 

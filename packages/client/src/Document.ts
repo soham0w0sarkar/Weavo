@@ -4,7 +4,7 @@ import {
   getText,
   onInput as localInput,
   type Operation,
-} from "@weavo/code";
+} from "@weavo/core";
 import {
   createTransport,
   createWebSocketTransport,

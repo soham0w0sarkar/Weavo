@@ -1,3 +1,3 @@
-import type { ClientId } from "@weavo/code";
+import type { ClientId } from "@weavo/core";
 
 export type StateVector = Map<ClientId, number>;

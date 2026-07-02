@@ -8,7 +8,7 @@ const nextConfig = {
   assetPrefix: basePath ? `${basePath}/` : undefined,
   transpilePackages: [
     "@weavo/client",
-    "@weavo/code",
+    "@weavo/core",
     "@weavo/sync",
     "@weavo/transport",
   ],

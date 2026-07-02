@@ -8,7 +8,7 @@ import {
   type NodeStore,
   type Operation,
   type OperationId,
-} from "@weavo/code";
+} from "@weavo/core";
 import {
   addToBuffer,
   canApply,

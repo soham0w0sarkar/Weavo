@@ -1,4 +1,4 @@
-import type { ClientId, Operation } from "@weavo/code";
+import type { ClientId, Operation } from "@weavo/core";
 import type { StateVector, StateVectorWire } from "@weavo/sync";
 import type { webSocketTransport } from "./webSocketTransport/types";
 

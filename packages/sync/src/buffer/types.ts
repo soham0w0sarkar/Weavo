@@ -1,1 +1,1 @@
-export type { OperationKey, Operation } from "@weavo/code";
+export type { OperationKey, Operation } from "@weavo/core";

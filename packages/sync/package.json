@@ -20,7 +20,10 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -30,7 +33,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@weavo/code": "workspace:*"
+    "@weavo/core": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

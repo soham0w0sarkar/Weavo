@@ -1,4 +1,4 @@
-import type { Document, OperationId } from "@weavo/code";
+import type { Document, OperationId } from "@weavo/core";
 import type { StateVector } from "./type";
 
 export const update = (sv: StateVector, id: OperationId) => {

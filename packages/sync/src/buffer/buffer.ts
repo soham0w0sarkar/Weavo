@@ -8,7 +8,7 @@ import {
   type AppliedOp,
   apply,
   type OperationId,
-} from "@weavo/code";
+} from "@weavo/core";
 
 const waiting = new Map<OperationKey, Set<InsertOperation>>();
 const buffered = new Map<OperationKey, InsertOperation>();

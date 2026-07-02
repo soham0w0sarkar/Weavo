@@ -1,4 +1,4 @@
-import type { ClientId } from "@weavo/code";
+import type { ClientId } from "@weavo/core";
 import type { StateVector } from "./type";
 
 export type StateVectorWire = Record<ClientId, number>;
