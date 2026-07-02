@@ -1,5 +1,9 @@
 # Weavo
 
+<p align="center">
+  <img src="docs/assets/logo.png" width="96" alt="Weavo logo" />
+</p>
+
 > Tiny, framework-agnostic real-time collaborative text editing.
 
 <p align="center">
