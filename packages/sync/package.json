@@ -1,6 +1,6 @@
 {
   "name": "@weavo/sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "State-vector sync for Weavo CRDT operations",
   "type": "module",
   "license": "MIT",
@@ -33,7 +33,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@weavo/core": "workspace:*"
+    "@weavo/core": "^1.0.1"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
