@@ -1,4 +1,5 @@
 .page {
+  position: relative;
   display: flex;
   min-height: 100vh;
   min-height: 100dvh;
@@ -16,31 +17,21 @@
   max-width: 520px;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
+.brandMark {
+  position: fixed;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  left: max(1.5rem, env(safe-area-inset-left));
+  margin: 0;
+  pointer-events: none;
+  user-select: none;
 }
 
 .logo {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.5rem;
-}
-
-.title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  display: block;
+  width: 7rem;
+  height: auto;
 }
 
 .lobby {
@@ -333,7 +324,12 @@
     padding-right: max(0.75rem, env(safe-area-inset-right));
   }
 
-  .title {
-    font-size: 1rem;
+  .brandMark {
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: max(1rem, env(safe-area-inset-left));
+  }
+
+  .logo {
+    width: 5.75rem;
   }
 }

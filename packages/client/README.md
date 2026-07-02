@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/soham0w0sarkar/Weavo/main/docs/assets/logo.png" width="140" alt="weavo" />
+</p>
+
 # @weavo/client
 
 Real-time collaborative text editing for the browser. Bind a `<textarea>`, connect to a WebSocket room, and edits sync automatically — including cursor-safe remote updates and concurrent middle-of-document changes.

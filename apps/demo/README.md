@@ -1,4 +1,6 @@
-# Weavo Demo
+<p align="center">
+  <img src="../../docs/assets/logo.png" width="140" alt="weavo" />
+</p>
 
 Collaborative text editing demo using `@weavo/client`.
 
