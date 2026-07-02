@@ -22,14 +22,25 @@
 .header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
 }
 
 .logo {
-  display: block;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.625rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
 .lobby {
@@ -322,8 +333,7 @@
     padding-right: max(0.75rem, env(safe-area-inset-right));
   }
 
-  .logo {
-    width: 2.25rem;
-    height: 2.25rem;
+  .title {
+    font-size: 1rem;
   }
 }
