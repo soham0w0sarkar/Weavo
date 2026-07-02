@@ -12,8 +12,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Relay",
-  description: "Collaborative text editing with Relay",
+  title: "Weavo",
+  description: "Collaborative text editing with Weavo",
 };
 
 export const viewport = {

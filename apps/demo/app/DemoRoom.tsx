@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RelayTextarea } from "./RelayTextarea";
-import { buildRelayRoomUrl } from "./lib/relayUrl";
+import { WeavoTextarea } from "./WeavoTextarea";
+import { buildWeavoRoomUrl } from "./lib/weavoUrl";
 import {
   createRoomId,
   loadStoredRoomId,
@@ -140,7 +140,7 @@ export function DemoRoom() {
         </div>
       </div>
 
-      <RelayTextarea relayUrl={buildRelayRoomUrl(roomId)} />
+      <WeavoTextarea weavoUrl={buildWeavoRoomUrl(roomId)} />
     </div>
   );
 }

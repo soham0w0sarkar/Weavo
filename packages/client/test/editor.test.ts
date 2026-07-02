@@ -123,7 +123,7 @@ describe("editor — local input", () => {
     await flushMicrotasks();
 
     const changes: TextChange[] = [];
-    peer.relay.textSubscribe((change) => changes.push(change));
+    peer.weavo.textSubscribe((change) => changes.push(change));
 
     moveCursor(peer.el, 0);
     insertText(peer.el, "ab");
@@ -363,7 +363,7 @@ describe("editor — bind lifecycle", () => {
 
     a.unbind();
     const nextEl = createTextarea();
-    a.relay.bind(nextEl);
+    a.weavo.bind(nextEl);
     await flushMicrotasks();
 
     moveCursor(nextEl, 0);

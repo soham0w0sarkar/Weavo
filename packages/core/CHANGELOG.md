@@ -1,4 +1,4 @@
-# @relay/code
+# @weavo/code
 
 ## 1.0.0
 

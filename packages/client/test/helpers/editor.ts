@@ -1,4 +1,4 @@
-import { createRelay } from "../../src/Document";
+import { createWeavo } from "../../src/Document";
 import { MemoryRoom } from "./memoryTransport";
 
 export const flushMicrotasks = async () => {
@@ -119,16 +119,16 @@ export const deleteForward = (el: HTMLTextAreaElement) => {
 };
 
 export type Peer = {
-  relay: ReturnType<typeof createRelay>;
+  weavo: ReturnType<typeof createWeavo>;
   el: HTMLTextAreaElement;
   unbind: () => void;
 };
 
 export const createPeer = (room: MemoryRoom): Peer => {
-  const relay = createRelay(room.join());
+  const weavo = createWeavo(room.join());
   const el = createTextarea();
-  const unbind = relay.bind(el);
-  return { relay, el, unbind };
+  const unbind = weavo.bind(el);
+  return { weavo, el, unbind };
 };
 
 export const createPeerPair = async () => {
@@ -142,7 +142,7 @@ export const createPeerPair = async () => {
 export const teardownPeers = (...peers: Peer[]) => {
   for (const peer of peers) {
     peer.unbind();
-    peer.relay.disconnect();
+    peer.weavo.disconnect();
     peer.el.remove();
   }
 };

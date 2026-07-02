@@ -1,12 +1,12 @@
 {
-  "name": "@relay/sync",
+  "name": "@weavo/sync",
   "version": "1.0.0",
-  "description": "State-vector sync for Relay CRDT operations",
+  "description": "State-vector sync for Weavo CRDT operations",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/soham0w0sarkar/Relay.git",
+    "url": "git+https://github.com/soham0w0sarkar/Weavo.git",
     "directory": "packages/sync"
   },
   "main": "./dist/index.cjs",
@@ -30,7 +30,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@relay/code": "workspace:*"
+    "@weavo/code": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

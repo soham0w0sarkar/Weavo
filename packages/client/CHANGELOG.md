@@ -1,4 +1,4 @@
-# @relay/client
+# @weavo/client
 
 ## 1.0.0
 
@@ -9,6 +9,6 @@
 ### Patch Changes
 
 - Updated dependencies [b5cf20f]
-  - @relay/transport@1.0.0
-  - @relay/code@1.0.0
-  - @relay/sync@1.0.0
+  - @weavo/transport@1.0.0
+  - @weavo/code@1.0.0
+  - @weavo/sync@1.0.0

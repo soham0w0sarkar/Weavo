@@ -8,7 +8,7 @@ import {
   type NodeStore,
   type Operation,
   type OperationId,
-} from "@relay/code";
+} from "@weavo/code";
 import {
   addToBuffer,
   canApply,
@@ -16,8 +16,8 @@ import {
   missingOps,
   update,
   type StateVector,
-} from "@relay/sync";
-import type { Message, Transport } from "@relay/transport";
+} from "@weavo/sync";
+import type { Message, Transport } from "@weavo/transport";
 import type { OnApplied, PeersReq, TimerRef } from "./types";
 
 const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {

@@ -1,3 +1,3 @@
-import type { ClientId } from "@relay/code";
+import type { ClientId } from "@weavo/code";
 
 export type StateVector = Map<ClientId, number>;

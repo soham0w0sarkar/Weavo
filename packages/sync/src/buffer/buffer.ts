@@ -8,7 +8,7 @@ import {
   type AppliedOp,
   apply,
   type OperationId,
-} from "@relay/code";
+} from "@weavo/code";
 
 const waiting = new Map<OperationKey, Set<InsertOperation>>();
 const buffered = new Map<OperationKey, InsertOperation>();

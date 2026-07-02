@@ -9,7 +9,7 @@
       "env": [
         "NEXT_STATIC_EXPORT",
         "NEXT_PUBLIC_BASE_PATH",
-        "NEXT_PUBLIC_RELAY_WS_URL"
+        "NEXT_PUBLIC_WEAVO_WS_URL"
       ]
     },
     "build:pages": {
@@ -19,7 +19,7 @@
       "env": [
         "NEXT_STATIC_EXPORT",
         "NEXT_PUBLIC_BASE_PATH",
-        "NEXT_PUBLIC_RELAY_WS_URL"
+        "NEXT_PUBLIC_WEAVO_WS_URL"
       ]
     },
     "lint": {

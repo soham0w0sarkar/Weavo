@@ -1,4 +1,4 @@
-# @relay/client
+# @weavo/client
 
 Real-time collaborative text editing for the browser. Bind a `<textarea>`, connect to a WebSocket room, and edits sync automatically — including cursor-safe remote updates and concurrent middle-of-document changes.
 
@@ -7,39 +7,39 @@ Built on a deterministic CRDT under the hood, so peers converge without a centra
 ## Install
 
 ```bash
-npm install @relay/client
+npm install @weavo/client
 ```
 
-This package expects peer dependencies from the Relay stack (`@relay/code`, `@relay/sync`, `@relay/transport`). In this monorepo they are wired automatically; when publishing standalone, install the matching versions together.
+This package expects peer dependencies from the Weavo stack (`@weavo/code`, `@weavo/sync`, `@weavo/transport`). In this monorepo they are wired automatically; when publishing standalone, install the matching versions together.
 
 ## Quick start
 
 ```ts
-import { createRelay } from "@relay/client";
+import { createWeavo } from "@weavo/client";
 
 const roomId = crypto.randomUUID();
-const relay = createRelay(`ws://localhost:8080?room=${roomId}`);
+const weavo = createWeavo(`ws://localhost:8080?room=${roomId}`);
 
 const textarea = document.querySelector("textarea")!;
-const unbind = relay.bind(textarea);
+const unbind = weavo.bind(textarea);
 
 // optional: observe text changes (local + remote)
-relay.textSubscribe((change) => {
+weavo.textSubscribe((change) => {
   console.log(change); // { index: 3, insert: "a" } or { index: 1, delete: 2 }
 });
 
 // later
 unbind();
-relay.disconnect();
+weavo.disconnect();
 ```
 
-That is the full integration for a plain textarea. Relay listens to native input events, turns them into CRDT operations, sends them over the wire, and applies remote ops back to the element.
+That is the full integration for a plain textarea. Weavo listens to native input events, turns them into CRDT operations, sends them over the wire, and applies remote ops back to the element.
 
 ### React
 
 ```tsx
 import { useEffect, useRef } from "react";
-import { createRelay } from "@relay/client";
+import { createWeavo } from "@weavo/client";
 
 export function CollaborativeTextarea({ roomUrl }: { roomUrl: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -48,12 +48,12 @@ export function CollaborativeTextarea({ roomUrl }: { roomUrl: string }) {
     const el = ref.current;
     if (!el) return;
 
-    const relay = createRelay(roomUrl);
-    const unbind = relay.bind(el);
+    const weavo = createWeavo(roomUrl);
+    const unbind = weavo.bind(el);
 
     return () => {
       unbind();
-      relay.disconnect();
+      weavo.disconnect();
     };
   }, [roomUrl]);
 
@@ -71,9 +71,9 @@ export function CollaborativeTextarea({ roomUrl }: { roomUrl: string }) {
 
 ## API
 
-### `createRelay(urlOrTransport)`
+### `createWeavo(urlOrTransport)`
 
-Creates a relay instance for one client.
+Creates a Weavo instance for one client.
 
 | Argument         | Type                     | Description                                                                      |
 | ---------------- | ------------------------ | -------------------------------------------------------------------------------- |
@@ -102,7 +102,7 @@ type TextChange = {
 
 ## How it works (short version)
 
-1. **You bind** a textarea — Relay captures selection and value around each edit.
+1. **You bind** a textarea — Weavo captures selection and value around each edit.
 2. **Local input** becomes CRDT operations and is sent to peers.
 3. **Remote operations** update the document and the textarea text from the merged CRDT state.
 4. **Selection and pending input** are transformed so concurrent edits do not corrupt the next local keystroke.
@@ -111,11 +111,11 @@ You do not manage operation IDs, state vectors, or index mapping yourself for th
 
 ## Custom transport
 
-For unit tests or non-WebSocket backends, pass a transport that implements the `RawTransport` interface from `@relay/transport`:
+For unit tests or non-WebSocket backends, pass a transport that implements the `RawTransport` interface from `@weavo/transport`:
 
 ```ts
-import { createRelay } from "@relay/client";
-import { createTransport, type RawTransport } from "@relay/transport";
+import { createWeavo } from "@weavo/client";
+import { createTransport, type RawTransport } from "@weavo/transport";
 
 const raw: RawTransport = {
   connect() {
@@ -138,24 +138,24 @@ const raw: RawTransport = {
   },
 };
 
-const relay = createRelay(raw);
+const weavo = createWeavo(raw);
 ```
 
 ## Requirements
 
-- **Browser** with `HTMLTextAreaElement` and `InputEvent` (Relay is built for DOM editors)
-- **Relay sync server** — a WebSocket endpoint that broadcasts ops per `?room=` query param (see `apps/relay-server` and `apps/demo` in this repo). Deploy the UI (e.g. Vercel) and relay server separately; use `wss://` in production.
+- **Browser** with `HTMLTextAreaElement` and `InputEvent` (Weavo is built for DOM editors)
+- **Weavo sync server** — a WebSocket endpoint that broadcasts ops per `?room=` query param (see `apps/weavo-server` and `apps/demo` in this repo). Deploy the UI (e.g. Vercel) and Weavo server separately; use `wss://` in production.
 
 ## Limitations
 
 - **Textarea only today** — built for `<textarea>`; rich-text editors need a different binding layer.
-- **One bound element per instance** — create another `createRelay()` per editor if you need multiple.
-- **No built-in persistence** — load initial document state yourself; Relay handles live collaboration.
+- **One bound element per instance** — create another `createWeavo()` per editor if you need multiple.
+- **No built-in persistence** — load initial document state yourself; Weavo handles live collaboration.
 
 ## Development
 
 ```bash
-# from packages/relay
+# from packages/client
 bun test
 bun run build
 ```

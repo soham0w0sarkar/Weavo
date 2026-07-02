@@ -4,14 +4,14 @@ import {
   getText,
   onInput as localInput,
   type Operation,
-} from "@relay/code";
+} from "@weavo/code";
 import {
   createTransport,
   createWebSocketTransport,
   type RawTransport,
-} from "@relay/transport";
+} from "@weavo/transport";
 import { manageTransport } from "./transport";
-import { update, type StateVector } from "@relay/sync";
+import { update, type StateVector } from "@weavo/sync";
 import { createSubscription } from "./Subscription";
 import { textChangeFromDiff, toTextChange } from "./textChange";
 import {
@@ -28,7 +28,7 @@ const captureSnapshot = (el: HTMLTextAreaElement): InputSnapshot => ({
   value: el.value,
 });
 
-export const createRelay = (urlOrTransport: string | RawTransport) => {
+export const createWeavo = (urlOrTransport: string | RawTransport) => {
   const clientId = generateClientId();
 
   const doc = createReplica(clientId);

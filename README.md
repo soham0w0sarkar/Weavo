@@ -1,19 +1,19 @@
-# Relay
+# Weavo
 
 > Tiny, framework-agnostic real-time collaborative text editing.
 
 <p align="center">
-  <img src="docs/assets/relay-demo-mobile.gif" height="420" alt="Relay demo on mobile" />
-  <img src="docs/assets/relay-demo-desktop.gif" height="420" alt="Relay demo on desktop" />
+  <img src="docs/assets/weavo-demo-mobile.gif" height="420" alt="Weavo demo on mobile" />
+  <img src="docs/assets/weavo-demo-desktop.gif" height="420" alt="Weavo demo on desktop" />
 </p>
 <p align="center"><sub>Mobile · Desktop — same room, live sync</sub></p>
 ---
 
-Relay turns any native `<textarea>` into a collaborative editor with a single function call.
+Weavo turns any native `<textarea>` into a collaborative editor with a single function call.
 
 No CRDT knowledge. No editor framework. No React dependency. Just bind a textarea, connect to a room, and every participant stays in sync.
 
-**Demo:** https://soham0w0sarkar.github.io/Relay/
+**Demo:** https://soham0w0sarkar.github.io/Weavo/
 
 ---
 
@@ -24,7 +24,7 @@ No CRDT knowledge. No editor framework. No React dependency. Just bind a textare
 - Conflict-free concurrent editing
 - Cursor/selection preservation during remote edits
 - Tiny, dependency-light client
-- Works with any compatible Relay WebSocket server
+- Works with any compatible Weavo WebSocket server
 - Framework agnostic (React, Vue, Svelte, Solid, Vanilla JS...)
 
 ---
@@ -32,19 +32,19 @@ No CRDT knowledge. No editor framework. No React dependency. Just bind a textare
 ## Installation
 
 ```bash
-npm install @relay/client
+npm install @weavo/client
 ```
 
 or
 
 ```bash
-pnpm add @relay/client
+pnpm add @weavo/client
 ```
 
 or
 
 ```bash
-bun add @relay/client
+bun add @weavo/client
 ```
 
 ---
@@ -52,15 +52,15 @@ bun add @relay/client
 ## Quick Start
 
 ```ts
-import { createRelay } from "@relay/client";
+import { createWeavo } from "@weavo/client";
 
-const relay = createRelay(
+const weavo = createWeavo(
   "wss://your-server.example.com?room=my-room"
 );
 
 const textarea = document.querySelector("textarea")!;
 
-const dispose = relay.bind(textarea);
+const dispose = weavo.bind(textarea);
 ```
 
 That's it.
@@ -71,12 +71,12 @@ Every edit made inside the textarea is synchronized with everyone connected to t
 
 ## API
 
-### `createRelay(urlOrTransport)`
+### `createWeavo(urlOrTransport)`
 
-Creates a Relay document.
+Creates a Weavo document.
 
 ```ts
-const relay = createRelay(
+const weavo = createWeavo(
   "wss://localhost:8080?room=notes"
 );
 ```
@@ -85,12 +85,12 @@ You may also provide a custom transport implementation instead of a URL.
 
 ---
 
-### `relay.bind(textarea)`
+### `weavo.bind(textarea)`
 
 Binds a native textarea to the collaborative document.
 
 ```ts
-const cleanup = relay.bind(textarea);
+const cleanup = weavo.bind(textarea);
 ```
 
 Returns a cleanup function.
@@ -101,12 +101,12 @@ cleanup();
 
 ---
 
-### `relay.subscribe(listener)`
+### `weavo.subscribe(listener)`
 
 Listen for document changes.
 
 ```ts
-const unsubscribe = relay.subscribe((change) => {
+const unsubscribe = weavo.subscribe((change) => {
   console.log(change);
 });
 ```
@@ -122,14 +122,14 @@ Useful for:
 
 ## How it Works
 
-Relay observes browser input events, converts them into editing operations, synchronizes those operations over WebSockets, and automatically applies incoming changes while preserving the user's current cursor and selection whenever possible.
+Weavo observes browser input events, converts them into editing operations, synchronizes those operations over WebSockets, and automatically applies incoming changes while preserving the user's current cursor and selection whenever possible.
 
 From the application's perspective, it's simply:
 
 ```
 User Input
       ↓
-Relay
+Weavo
       ↓
 WebSocket
       ↓
@@ -149,15 +149,15 @@ No polling.
 ### React
 
 ```tsx
-const relay = createRelay(url);
+const weavo = createWeavo(url);
 
 useEffect(() => {
     if (!ref.current) return;
-    return relay.bind(ref.current);
+    return weavo.bind(ref.current);
 }, []);
 ```
 
-Because Relay works directly with the DOM, it can be used with virtually any frontend framework.
+Because Weavo works directly with the DOM, it can be used with virtually any frontend framework.
 
 ---
 
@@ -174,7 +174,7 @@ Modern browsers supporting:
 
 ## Philosophy
 
-Relay intentionally focuses on one thing:
+Weavo intentionally focuses on one thing:
 
 > Make collaborative textareas ridiculously simple.
 
@@ -184,7 +184,7 @@ It does **not** attempt to become:
 - an editor framework
 - a UI toolkit
 
-Instead, Relay provides a reliable synchronization layer that can be integrated anywhere.
+Instead, Weavo provides a reliable synchronization layer that can be integrated anywhere.
 
 ---
 
@@ -194,10 +194,10 @@ This repository is a monorepo containing:
 
 | Package | Description |
 |----------|-------------|
-| `@relay/client` | Browser client |
-| `@relay/code` | Collaborative editing engine |
-| `@relay/sync` | Synchronization protocol |
-| `@relay/transport` | Transport abstraction |
+| `@weavo/client` | Browser client |
+| `@weavo/code` | Collaborative editing engine |
+| `@weavo/sync` | Synchronization protocol |
+| `@weavo/transport` | Transport abstraction |
 
 ---
 

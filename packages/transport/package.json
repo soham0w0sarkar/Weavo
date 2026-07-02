@@ -1,12 +1,12 @@
 {
-  "name": "@relay/transport",
+  "name": "@weavo/transport",
   "version": "1.0.0",
-  "description": "WebSocket transport layer for Relay",
+  "description": "WebSocket transport layer for Weavo",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/soham0w0sarkar/Relay.git",
+    "url": "git+https://github.com/soham0w0sarkar/Weavo.git",
     "directory": "packages/transport"
   },
   "main": "./dist/index.cjs",
@@ -30,8 +30,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@relay/code": "workspace:*",
-    "@relay/sync": "workspace:*"
+    "@weavo/code": "workspace:*",
+    "@weavo/sync": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

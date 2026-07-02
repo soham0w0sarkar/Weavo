@@ -1,12 +1,12 @@
 {
-  "name": "@relay/code",
+  "name": "@weavo/code",
   "version": "1.0.0",
-  "description": "CRDT core for Relay collaborative text editing",
+  "description": "CRDT core for Weavo collaborative text editing",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/soham0w0sarkar/Relay.git",
+    "url": "git+https://github.com/soham0w0sarkar/Weavo.git",
     "directory": "packages/core"
   },
   "main": "./dist/index.cjs",

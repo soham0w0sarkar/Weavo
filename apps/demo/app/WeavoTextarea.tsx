@@ -1,23 +1,23 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { createRelay } from "@relay/client";
+import { createWeavo } from "@weavo/client";
 
-export function RelayTextarea({ relayUrl }: { relayUrl: string }) {
+export function WeavoTextarea({ weavoUrl }: { weavoUrl: string }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
 
-    const relay = createRelay(relayUrl);
-    const unbind = relay.bind(el);
+    const weavo = createWeavo(weavoUrl);
+    const unbind = weavo.bind(el);
 
     return () => {
       unbind();
-      relay.disconnect();
+      weavo.disconnect();
     };
-  }, [relayUrl]);
+  }, [weavoUrl]);
 
   return (
     <textarea

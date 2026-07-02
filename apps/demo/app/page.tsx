@@ -6,7 +6,7 @@ export default function Home() {
     <div className={styles.page}>
       <main className={styles.main}>
         <header className={styles.header}>
-          <h1 className={styles.title}>Relay</h1>
+          <h1 className={styles.title}>Weavo</h1>
         </header>
         <DemoRoom />
       </main>

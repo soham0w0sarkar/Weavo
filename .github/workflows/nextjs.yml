@@ -1,7 +1,7 @@
-# Deploy the Relay demo (apps/demo) to GitHub Pages.
-# Turborepo builds @relay/* workspace packages, then static-exports the Next.js app.
+# Deploy the Weavo demo (apps/demo) to GitHub Pages.
+# Turborepo builds @weavo/* workspace packages, then static-exports the Next.js app.
 
-name: Deploy Relay demo to GitHub Pages
+name: Deploy Weavo demo to GitHub Pages
 
 on:
   push:
@@ -47,7 +47,7 @@ jobs:
         env:
           NEXT_STATIC_EXPORT: "1"
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
-          NEXT_PUBLIC_RELAY_WS_URL: ${{ secrets.RELAY_WS_URL }}
+          NEXT_PUBLIC_WEAVO_WS_URL: ${{ secrets.WEAVO_WS_URL }}
         run: bun run build:pages
 
       - name: Upload artifact

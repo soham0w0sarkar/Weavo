@@ -44,7 +44,7 @@ Bun.serve<RoomData>({
     if (server.upgrade(req, { data: { room } })) return undefined;
 
     return httpResponse(
-      `Relay WebSocket server\nConnect with ?room=<id>\nHealth: /health\n`,
+      `Weavo WebSocket server\nConnect with ?room=<id>\nHealth: /health\n`,
     );
   },
   websocket: {
@@ -77,4 +77,4 @@ Bun.serve<RoomData>({
   },
 });
 
-console.log(`Relay WebSocket server listening on ws://localhost:${PORT}`);
+console.log(`Weavo WebSocket server listening on ws://localhost:${PORT}`);

@@ -7,10 +7,10 @@ const nextConfig = {
   basePath,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   transpilePackages: [
-    "@relay/client",
-    "@relay/code",
-    "@relay/sync",
-    "@relay/transport",
+    "@weavo/client",
+    "@weavo/code",
+    "@weavo/sync",
+    "@weavo/transport",
   ],
   images: {
     unoptimized: true,
