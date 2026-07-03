@@ -164,4 +164,4 @@ bun run build
 
 ## License
 
-Private / see repository root.
+MIT

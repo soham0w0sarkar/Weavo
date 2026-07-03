@@ -2,6 +2,15 @@
   "name": "@weavo/sync",
   "version": "1.0.1",
   "description": "State-vector sync for Weavo CRDT operations",
+  "keywords": [
+    "weavo",
+    "crdt",
+    "sync",
+    "state-vector",
+    "collaborative-editing",
+    "operations",
+    "buffer"
+  ],
   "type": "module",
   "license": "MIT",
   "repository": {

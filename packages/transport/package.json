@@ -2,6 +2,15 @@
   "name": "@weavo/transport",
   "version": "1.0.1",
   "description": "WebSocket transport layer for Weavo",
+  "keywords": [
+    "weavo",
+    "websocket",
+    "transport",
+    "crdt",
+    "collaborative-editing",
+    "real-time",
+    "sync"
+  ],
   "type": "module",
   "license": "MIT",
   "repository": {

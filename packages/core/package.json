@@ -2,6 +2,15 @@
   "name": "@weavo/core",
   "version": "1.0.1",
   "description": "CRDT core for Weavo collaborative text editing",
+  "keywords": [
+    "weavo",
+    "crdt",
+    "collaborative-editing",
+    "text-editing",
+    "operations",
+    "replica",
+    "skip-list"
+  ],
   "type": "module",
   "license": "MIT",
   "repository": {
