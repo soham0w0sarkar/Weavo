@@ -4,7 +4,7 @@
 
 # @weavo/client
 
-Real-time collaborative text editing for the browser. Bind a `<textarea>`, connect to a WebSocket room, and edits sync automatically — including cursor-safe remote updates and concurrent middle-of-document changes.
+Real-time collaborative text editing for the browser. Bind a `<textarea>`, connect to a WebSocket server, and edits sync automatically — including cursor-safe remote updates and concurrent middle-of-document changes.
 
 Built on a deterministic CRDT under the hood, so peers converge without a central server ordering ops.
 
@@ -16,11 +16,39 @@ npm install @weavo/client
 
 ## Quick start
 
+### WebSocket server
+
+```bash
+npm install ws
+```
+
+```js
+// server.js — node server.js
+const { WebSocketServer } = require("ws");
+
+const wss = new WebSocketServer({ port: 8080 });
+
+wss.on("connection", (ws) => {
+  ws.on("message", (data) => {
+    for (const client of wss.clients) {
+      if (client !== ws && client.readyState === 1) client.send(data);
+    }
+  });
+});
+
+console.log("ws://localhost:8080");
+```
+
+### Browser client
+
+```bash
+npm install @weavo/client
+```
+
 ```ts
 import { createWeavo } from "@weavo/client";
 
-const roomId = crypto.randomUUID();
-const weavo = createWeavo(`ws://localhost:8080?room=${roomId}`);
+const weavo = createWeavo("ws://localhost:8080");
 
 const textarea = document.querySelector("textarea")!;
 const unbind = weavo.bind(textarea);
@@ -146,7 +174,7 @@ const weavo = createWeavo(raw);
 ## Requirements
 
 - **Browser** with `HTMLTextAreaElement` and `InputEvent` (Weavo is built for DOM editors)
-- **Weavo sync server** — a WebSocket endpoint that broadcasts ops per `?room=` query param (see `apps/weavo-server` and `apps/demo` in this repo). Deploy the UI (e.g. Vercel) and Weavo server separately; use `wss://` in production.
+- **WebSocket relay** — any server that broadcasts messages between connected clients (see Quick start). Use `wss://` in production.
 
 ## Limitations
 

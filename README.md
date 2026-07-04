@@ -1,3 +1,4 @@
+# Weavo
 <p align="center">
   <img src="docs/assets/logo.png" width="180" alt="weavo" />
 </p>
@@ -9,6 +10,7 @@
   <img src="docs/assets/weavo-demo-desktop.gif" height="420" alt="Weavo demo on desktop" />
 </p>
 <p align="center"><sub>Mobile · Desktop — same room, live sync</sub></p>
+
 ---
 
 Weavo turns any native `<textarea>` into a collaborative editor with a single function call.
@@ -53,19 +55,47 @@ bun add @weavo/client
 
 ## Quick Start
 
+Weavo needs a **WebSocket relay** and the **browser client**. The server just forwards JSON — clients handle merging.
+
+### 1. WebSocket server
+
+```bash
+npm install ws
+```
+
+```js
+// server.js — node server.js
+const { WebSocketServer } = require("ws");
+
+const wss = new WebSocketServer({ port: 8080 });
+
+wss.on("connection", (ws) => {
+  ws.on("message", (data) => {
+    for (const client of wss.clients) {
+      if (client !== ws && client.readyState === 1) client.send(data);
+    }
+  });
+});
+
+console.log("ws://localhost:8080");
+```
+
+### 2. Browser client
+
+```bash
+npm install @weavo/client
+```
+
 ```ts
 import { createWeavo } from "@weavo/client";
 
-const weavo = createWeavo("wss://your-server.example.com?room=my-room");
+const weavo = createWeavo("ws://localhost:8080");
 
 const textarea = document.querySelector("textarea")!;
-
 const dispose = weavo.bind(textarea);
 ```
 
-That's it.
-
-Every edit made inside the textarea is synchronized with everyone connected to the same room.
+That's it — open two tabs and start typing. Use `wss://` in production.
 
 ---
 
