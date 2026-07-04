@@ -182,6 +182,10 @@ const weavo = createWeavo(raw);
 - **One bound element per instance** — create another `createWeavo()` per editor if you need multiple.
 - **No built-in persistence** — load initial document state yourself; Weavo handles live collaboration.
 
+## Reconnection
+
+`@weavo/client` reconnects automatically when the WebSocket drops (idle timeouts, server restarts, network blips). While disconnected, outgoing ops are queued and flushed on reconnect; a sync request runs on each reconnect so you catch up on missed edits. Call `disconnect()` to close intentionally without retrying.
+
 ## Development
 
 ```bash

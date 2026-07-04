@@ -1,5 +1,11 @@
 export type Unsubscribe = () => void;
 
+export type WebSocketTransportOptions = {
+  reconnect?: boolean;
+  reconnectMinDelay?: number;
+  reconnectMaxDelay?: number;
+};
+
 export type webSocketTransport = {
   connect(): void;
   disconnect(): void;

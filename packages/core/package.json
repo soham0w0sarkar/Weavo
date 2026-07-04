@@ -1,6 +1,6 @@
 {
   "name": "@weavo/core",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "CRDT core for Weavo collaborative text editing",
   "keywords": [
     "weavo",
@@ -29,7 +29,10 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public"
   },
