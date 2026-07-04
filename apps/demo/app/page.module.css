@@ -34,6 +34,50 @@
   height: auto;
 }
 
+.serverWait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.5rem 0;
+  text-align: center;
+}
+
+.serverMessage {
+  max-width: 22rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+}
+
+.retryButton {
+  min-height: var(--touch);
+  padding: 0.625rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.retryButton:active {
+  opacity: 0.88;
+}
+
+@media (hover: hover) {
+  .retryButton:hover {
+    background: color-mix(in srgb, var(--foreground) 4%, var(--surface));
+  }
+}
+
 .lobby {
   display: flex;
   flex-direction: column;

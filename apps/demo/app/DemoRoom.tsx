@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { WeavoTextarea } from "./WeavoTextarea";
 import { buildWeavoRoomUrl } from "./lib/weavoUrl";
 import {
+  checkWeavoServerReady,
+  isRemoteWeavoServer,
+} from "./lib/weavoReady";
+import {
   createRoomId,
   loadStoredRoomId,
   parseRoomId,
@@ -12,17 +16,35 @@ import {
 } from "./lib/roomId";
 import styles from "./page.module.css";
 
+type ServerStatus = "checking" | "ready" | "unavailable";
+
 export function DemoRoom() {
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const [serverStatus, setServerStatus] = useState<ServerStatus>("checking");
   const [joinInput, setJoinInput] = useState("");
   const [joinError, setJoinError] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const pingServer = useCallback(async () => {
+    setServerStatus("checking");
+    try {
+      await checkWeavoServerReady();
+      setServerStatus("ready");
+    } catch {
+      setServerStatus("unavailable");
+    }
+  }, []);
+
   useEffect(() => {
     setRoomId(loadStoredRoomId());
-    setReady(true);
+    setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    pingServer();
+  }, [hydrated, pingServer]);
 
   const enterRoom = useCallback((id: string) => {
     storeRoomId(id);
@@ -56,7 +78,32 @@ export function DemoRoom() {
     window.setTimeout(() => setCopied(false), 1500);
   }, [roomId]);
 
-  if (!ready) return null;
+  if (!hydrated) return null;
+
+  if (serverStatus !== "ready") {
+    const remote = isRemoteWeavoServer();
+
+    return (
+      <div className={styles.serverWait}>
+        <p className={styles.serverMessage}>
+          {serverStatus === "checking"
+            ? "Waking up the sync server…"
+            : remote
+              ? "Sorry — this demo runs on a free hosted server. It sleeps when idle and can take up to a minute to start."
+              : "Could not reach the sync server. Make sure it is running locally."}
+        </p>
+        {serverStatus === "unavailable" && (
+          <button
+            type="button"
+            className={styles.retryButton}
+            onClick={pingServer}
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (!roomId) {
     return (
