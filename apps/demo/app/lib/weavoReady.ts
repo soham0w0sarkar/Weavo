@@ -8,10 +8,9 @@ export type WeavoReadyResponse = {
   startedAt: string;
 };
 
-/** HTTP base for the configured Weavo server (ws → http). */
+/** HTTP base for the configured Weavo server (wss → https). */
 export function getWeavoHttpBase(): string {
-  const wsBase = getWeavoWsBase();
-  const url = new URL(wsBase);
+  const url = new URL(getWeavoWsBase());
   url.protocol = url.protocol === "wss:" ? "https:" : "http:";
   return url.origin;
 }

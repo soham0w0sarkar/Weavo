@@ -27,7 +27,7 @@ The demo is a static Next.js export deployed from `main` via [`.github/workflows
 ### One-time setup
 
 1. On GitHub: **Settings → Pages → Build and deployment → Source** → **GitHub Actions**.
-2. (Recommended) Add repository secret **`WEAVO_WS_URL`** with your public WebSocket base URL, e.g. `wss://your-weavo.example.com` (no `?room=` — the app adds that per session). Without this, the site defaults to `ws://localhost:8080`, which only works locally.
+2. (Recommended) Add repository secret **`WEAVO_WS_URL`** with your public WebSocket base URL, e.g. `wss://weavo-ktd9.onrender.com` (no `?room=` — the app adds that per session). `http://` and `ws://` are auto-upgraded to HTTPS/WSS on the live site. Without this secret, the site defaults to `ws://localhost:8080`, which only works locally.
 3. Deploy `apps/weavo-server` separately (Railway, Fly.io, Render, etc.) for live collaboration on the hosted demo.
 
 ### Deploy
