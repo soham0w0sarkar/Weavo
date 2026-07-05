@@ -1,5 +1,11 @@
 # @weavo/core
 
+## 1.1.0
+
+### Minor Changes
+
+- tests
+
 ## 1.0.3
 
 ### Patch Changes
