@@ -12,9 +12,11 @@ import {
 import {
   addToBuffer,
   canApply,
+  createBuffer,
   flush,
   missingOps,
   update,
+  type OperationBuffer,
   type StateVector,
 } from "@weavo/sync";
 import type { Message, Transport } from "@weavo/transport";
@@ -51,17 +53,20 @@ const isOpPresent = (store: NodeStore, op: Operation): boolean => {
 };
 
 const handleIncomingOp = (
+  buffer: OperationBuffer,
   doc: Document,
   op: Operation,
   sv: StateVector,
   onApplied: OnApplied,
+  transport: Transport,
+  syncReqTimerRef: TimerRef,
 ) => {
   if (isOpPresent(doc.store, op)) return;
 
   if (canApply(doc, op)) {
     const index = apply(doc, op);
     onApplied(op, index);
-    const appliedOps = flush(doc, op);
+    const appliedOps = flush(buffer, doc, op);
 
     appliedOps.forEach(({ op, index }) => onApplied(op, index));
 
@@ -69,8 +74,23 @@ const handleIncomingOp = (
       update(sv, op.id);
     }
   } else {
-    addToBuffer(doc, op);
+    addToBuffer(buffer, doc, op);
+    scheduleSyncRequest(transport, sv, doc.clientId, syncReqTimerRef);
   }
+};
+
+const scheduleSyncRequest = (
+  transport: Transport,
+  sv: StateVector,
+  clientId: ClientId,
+  syncReqTimerRef: TimerRef,
+) => {
+  if (syncReqTimerRef.current) clearTimeout(syncReqTimerRef.current);
+
+  syncReqTimerRef.current = setTimeout(() => {
+    syncReqTimerRef.current = undefined;
+    transport.send({ type: "sync-request", vector: sv, clientId });
+  }, 50);
 };
 
 const handleSyncReq = (
@@ -87,7 +107,7 @@ const handleSyncReq = (
 
   const backOffDelay =
     misingOps.length === 0
-      ? Infinity
+      ? 2147483647
       : -Math.log(Math.random()) / misingOps.length;
 
   const ops = nodesToOp(doc.store, misingOps);
@@ -100,6 +120,7 @@ const handleSyncReq = (
 };
 
 const handleSyncRes = (
+  buffer: OperationBuffer,
   doc: Document,
   clientIds: PeersReq,
   opClientId: ClientId,
@@ -107,12 +128,22 @@ const handleSyncRes = (
   sv: StateVector,
   timerRef: TimerRef,
   onApplied: OnApplied,
+  transport: Transport,
+  syncReqTimerRef: TimerRef,
 ) => {
   const isMinePresent = clientIds.includes(opClientId);
 
   if (isMinePresent) {
     ops.map((op) => {
-      handleIncomingOp(doc, op, sv, onApplied);
+      handleIncomingOp(
+        buffer,
+        doc,
+        op,
+        sv,
+        onApplied,
+        transport,
+        syncReqTimerRef,
+      );
     });
     return;
   }
@@ -124,9 +155,11 @@ export const manageTransport = (
   transport: Transport,
   doc: Document,
   sv: StateVector,
+  buffer: OperationBuffer,
   onApplied: OnApplied,
 ) => {
   const timerRef: TimerRef = { current: undefined };
+  const syncReqTimerRef: TimerRef = { current: undefined };
   const requestQueue: PeersReq = [];
 
   transport.onOpen(() => {
@@ -140,7 +173,15 @@ export const manageTransport = (
   transport.onMessage((message: Message) => {
     switch (message.type) {
       case "op":
-        handleIncomingOp(doc, message.op, sv, onApplied);
+        handleIncomingOp(
+          buffer,
+          doc,
+          message.op,
+          sv,
+          onApplied,
+          transport,
+          syncReqTimerRef,
+        );
         break;
       case "sync-request":
         requestQueue.push(message.clientId);
@@ -155,6 +196,7 @@ export const manageTransport = (
         break;
       case "sync-response":
         handleSyncRes(
+          buffer,
           doc,
           message.clientIds,
           doc.clientId,
@@ -162,6 +204,8 @@ export const manageTransport = (
           sv,
           timerRef,
           onApplied,
+          transport,
+          syncReqTimerRef,
         );
     }
   });

@@ -41,7 +41,8 @@
   "scripts": {
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "test": "bun test --preload ./test/setup.ts"
+    "test": "bun test --preload ./test/setup.ts",
+    "test:load": "bun test --preload ./test/setup.ts ./test/responseSuppression.load.test.ts"
   },
   "dependencies": {
     "@weavo/core": "^1.0.3",

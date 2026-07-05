@@ -1,6 +1,7 @@
 export {
+  createBuffer,
   addToBuffer,
   flush,
   canApply,
 } from "./buffer";
-export type { OperationKey, Operation } from "./types";
+export type { OperationBuffer, OperationKey, Operation } from "./types";

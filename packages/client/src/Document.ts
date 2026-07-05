@@ -11,7 +11,7 @@ import {
   type RawTransport,
 } from "@weavo/transport";
 import { manageTransport } from "./transport";
-import { update, type StateVector } from "@weavo/sync";
+import { createBuffer, update, type StateVector } from "@weavo/sync";
 import { createSubscription } from "./Subscription";
 import { textChangeFromDiff, toTextChange } from "./textChange";
 import {
@@ -33,6 +33,7 @@ export const createWeavo = (urlOrTransport: string | RawTransport) => {
 
   const doc = createReplica(clientId);
   const sv: StateVector = new Map();
+  const buffer = createBuffer();
   const rawTransport =
     typeof urlOrTransport === "string"
       ? createWebSocketTransport(urlOrTransport)
@@ -78,7 +79,7 @@ export const createWeavo = (urlOrTransport: string | RawTransport) => {
     });
   };
 
-  manageTransport(transport, doc, sv, onApplied);
+  manageTransport(transport, doc, sv, buffer, onApplied);
   transport.connect();
 
   const bind = (el: HTMLTextAreaElement) => {
