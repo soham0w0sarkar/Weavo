@@ -2,7 +2,6 @@
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
     "noUncheckedIndexedAccess": false,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
@@ -10,9 +9,9 @@
     "exactOptionalPropertyTypes": true,
     "noImplicitReturns": true,
     "verbatimModuleSyntax": true,
-    "types": ["node"],
+    "types": ["node", "bun-types"],
     "lib": ["es2022", "DOM"]
   },
-  "include": ["src"],
+  "include": ["src", "test"],
   "exclude": ["node_modules", "dist"]
 }

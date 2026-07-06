@@ -101,7 +101,7 @@ That's it — open two tabs and start typing. Use `wss://` in production.
 
 ## API
 
-### `createWeavo(urlOrTransport)`
+### `createWeavo(urlOrTransport, options?)`
 
 Creates a Weavo document.
 
@@ -109,7 +109,14 @@ Creates a Weavo document.
 const weavo = createWeavo("wss://localhost:8080?room=notes");
 ```
 
-You may also provide a custom transport implementation instead of a URL.
+You may also pass a custom transport instead of a URL, plus optional persistence hooks:
+
+```ts
+const weavo = createWeavo(url, {
+  initial: { snapshot, delta }, // restore from storage
+  onOp(op) { /* append to delta log */ },
+});
+```
 
 ---
 
@@ -129,24 +136,37 @@ cleanup();
 
 ---
 
-### `weavo.subscribe(listener)`
+### `weavo.textSubscribe(listener)`
 
-Listen for document changes.
+Listen for document text changes.
 
 ```ts
-const unsubscribe = weavo.subscribe((change) => {
-  console.log(change);
+const unsubscribe = weavo.textSubscribe((change) => {
+  console.log(change); // { index: 3, insert: "a" } or { index: 1, delete: 2 }
 });
 ```
 
-Useful for:
-
-- analytics
-- persistence
-- live previews
-- custom UI updates
+Useful for analytics, live previews, and custom UI updates.
 
 ---
+
+### `weavo.snapshot()` — persistence
+
+Capture a JSON checkpoint of the document (CRDT state + state vector):
+
+```ts
+const checkpoint = weavo.snapshot();
+localStorage.setItem("doc:snapshot", JSON.stringify(checkpoint));
+localStorage.setItem("doc:delta", "[]");
+```
+
+Restore on the next visit with **base + delta**:
+
+1. Save `weavo.snapshot()` as the base checkpoint.
+2. Append every operation via `onOp` to a delta array.
+3. Pass `initial: { snapshot, delta }` to `createWeavo`.
+
+`DocumentSnapshot` is plain JSON — use any database or file store. See [`packages/client/README.md`](./packages/client/README.md) for a full localStorage example.
 
 ## How it Works
 

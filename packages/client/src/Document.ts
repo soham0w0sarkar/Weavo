@@ -3,6 +3,9 @@ import {
   generateClientId,
   getText,
   onInput as localInput,
+  restoreFromStorage,
+  takeSnapshot,
+  type DocumentSnapshot,
   type Operation,
 } from "@weavo/core";
 import {
@@ -22,17 +25,33 @@ import {
 } from "./inputSnapshot";
 import type { TextChange } from "./types";
 
+export type WeavoOptions = {
+
+  onOp?: (op: Operation) => void;
+  initial?: {
+    snapshot: DocumentSnapshot;
+    delta?: Operation[];
+  };
+};
+
 const captureSnapshot = (el: HTMLTextAreaElement): InputSnapshot => ({
   start: el.selectionStart,
   end: el.selectionEnd,
   value: el.value,
 });
 
-export const createWeavo = (urlOrTransport: string | RawTransport) => {
+export const createWeavo = (
+  urlOrTransport: string | RawTransport,
+  options: WeavoOptions = {},
+) => {
   const clientId = generateClientId();
 
-  const doc = createReplica(clientId);
-  const sv: StateVector = new Map();
+  const restored = options.initial
+    ? restoreFromStorage(options.initial.snapshot, options.initial.delta ?? [])
+    : null;
+
+  const doc = restored?.doc ?? createReplica(clientId);
+  const sv: StateVector = restored?.stateVector ?? new Map();
   const buffer = createBuffer();
   const rawTransport =
     typeof urlOrTransport === "string"
@@ -62,7 +81,10 @@ export const createWeavo = (urlOrTransport: string | RawTransport) => {
     emitChange(change);
   };
 
-  const onApplied = (_op: Operation, _index: number) => {
+  const notifyOp = (op: Operation) => options.onOp?.(op);
+
+  const onApplied = (op: Operation, _index: number) => {
+    notifyOp(op);
     const prevText = boundEl?.value ?? "";
     applyRemoteToBound(prevText, getText(doc.store));
   };
@@ -74,6 +96,7 @@ export const createWeavo = (urlOrTransport: string | RawTransport) => {
       if(op.type === "insert") {
         update(sv, op.id);
       }
+      notifyOp(op);
       emitChange(toTextChange(op, index));
       transport.send({ type: "op", op });
     });
@@ -84,6 +107,12 @@ export const createWeavo = (urlOrTransport: string | RawTransport) => {
 
   const bind = (el: HTMLTextAreaElement) => {
     boundEl = el;
+
+    const text = getText(doc.store);
+    if (text) {
+      el.value = text;
+      before = captureSnapshot(el);
+    }
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Backspace" || event.key === "Delete") {
@@ -137,6 +166,8 @@ export const createWeavo = (urlOrTransport: string | RawTransport) => {
   return {
     bind,
     textSubscribe: subscription.subscribe,
+    /** Full document checkpoint — store in any DB. */
+    snapshot: (): DocumentSnapshot => takeSnapshot(doc, sv),
     disconnect: () => transport.disconnect(),
   };
 };

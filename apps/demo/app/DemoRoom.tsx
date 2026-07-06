@@ -14,6 +14,7 @@ import {
   shortRoomId,
   storeRoomId,
 } from "./lib/roomId";
+import { clearRoomStorage } from "./lib/roomStorage";
 import styles from "./page.module.css";
 
 type ServerStatus = "checking" | "ready" | "unavailable";
@@ -54,8 +55,9 @@ export function DemoRoom() {
   }, []);
 
   const createRoom = useCallback(() => {
+    if (roomId) clearRoomStorage(roomId);
     enterRoom(createRoomId());
-  }, [enterRoom]);
+  }, [enterRoom, roomId]);
 
   const joinRoom = useCallback(() => {
     const id = parseRoomId(joinInput);
@@ -67,9 +69,10 @@ export function DemoRoom() {
   }, [enterRoom, joinInput]);
 
   const leaveRoom = useCallback(() => {
+    if (roomId) clearRoomStorage(roomId);
     storeRoomId(null);
     setRoomId(null);
-  }, []);
+  }, [roomId]);
 
   const copyId = useCallback(async () => {
     if (!roomId) return;
@@ -187,7 +190,7 @@ export function DemoRoom() {
         </div>
       </div>
 
-      <WeavoTextarea weavoUrl={buildWeavoRoomUrl(roomId)} />
+      <WeavoTextarea weavoUrl={buildWeavoRoomUrl(roomId)} roomId={roomId} />
     </div>
   );
 }

@@ -370,7 +370,7 @@ describe("editor — bind lifecycle", () => {
     insertText(nextEl, "more");
     await flushMicrotasks();
 
-    expect(nextEl.value).toBe("more");
+    expect(nextEl.value).toBe("moreold");
     teardownPeers(a);
     nextEl.remove();
   });
