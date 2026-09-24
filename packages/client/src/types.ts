@@ -1,4 +1,4 @@
-import type { ClientId } from "@weavo/core";
+import type { ClientId, Operation } from "@weavo/core";
 
 export type TimerRef = { current: ReturnType<typeof setTimeout> | undefined };
 
@@ -10,12 +10,31 @@ export type TextChange = {
   delete?: number;
 };
 
-export type CompositionState = {
-  value: string;
-  start: number;
-  end: number;
-  docStart: number;
-  docEnd: number;
+export type InputSnapshot = { start: number; end: number; value: string };
+
+export type LocalInput = {
+  inputType: string;
+  data?: string | null;
+};
+
+export type RemoteChange = {
+  op: Operation;
+  index: number;
+  change: TextChange;
+  text: string;
+};
+
+export type WeavoAdapterHost = {
+  getText: () => string;
+  isJoined: () => boolean;
+  onJoined: (listener: () => void) => () => void;
+  applyLocal: (input: LocalInput, snapshot: InputSnapshot) => void;
+  onRemote: (listener: (change: RemoteChange) => void) => () => void;
+  setCursorSource: (getCursor: (() => number) | null) => void;
+};
+
+export type WeavoAdapter<TTarget> = {
+  bind: (host: WeavoAdapterHost, target: TTarget) => () => void;
 };
 
 export type { OnApplied } from "@weavo/core";

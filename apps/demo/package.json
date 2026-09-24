@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@weavo/client": "workspace:*",
+    "@weavo/textarea-adapter": "workspace:*",
     "@weavo/transport": "workspace:*",
     "@repo/ui": "*",
     "next": "16.1.5",

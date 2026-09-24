@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createWeavo, type PeerPresence } from "@weavo/client";
+import { textareaAdapter } from "@weavo/textarea-adapter";
 import { RemoteCursors } from "./RemoteCursors";
 import {
   appendClientDelta,
@@ -73,6 +74,7 @@ export function WeavoTextarea({
     let closed = false;
 
     const weavo = createWeavo(weavoUrl, {
+      adapter: textareaAdapter,
       clientId,
       name: displayName,
       color: displayColor,

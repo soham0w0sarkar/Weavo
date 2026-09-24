@@ -1,6 +1,7 @@
 import "./setup";
 import { describe, expect, test } from "bun:test";
 import { createWeavo } from "../src/Document";
+import { textareaAdapter } from "../../textarea-adapter/src";
 import {
   createTextarea,
   flushMicrotasks,
@@ -13,6 +14,7 @@ describe("membership join gate", () => {
   test("solo peer founds the room before sending ops", async () => {
     const room = new MemoryRoom();
     const weavo = createWeavo(room.join(), {
+      adapter: textareaAdapter,
       foundingGraceMs: 0,
       heartbeatIntervalMs: 0,
     });
@@ -36,6 +38,7 @@ describe("membership join gate", () => {
   test("second peer waits for JOIN_RESPONSE before syncing ops", async () => {
     const room = new MemoryRoom();
     const founder = createWeavo(room.join(), {
+      adapter: textareaAdapter,
       foundingGraceMs: 0,
       heartbeatIntervalMs: 0,
     });
@@ -47,6 +50,7 @@ describe("membership join gate", () => {
     await flushMicrotasks();
 
     const joiner = createWeavo(room.join(), {
+      adapter: textareaAdapter,
       foundingGraceMs: 5_000,
       heartbeatIntervalMs: 0,
     });

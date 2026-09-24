@@ -2,6 +2,7 @@ import "./setup";
 import { describe, expect, test } from "bun:test";
 import type { ClientId } from "@weavo/core";
 import { createWeavo } from "../src/Document";
+import { textareaAdapter } from "../../textarea-adapter/src";
 import {
   createTextarea,
   flushMicrotasks,
@@ -19,6 +20,7 @@ describe("presence heartbeats", () => {
 
     const aliceSeen: string[] = [];
     const alice = createWeavo(room.join(), {
+      adapter: textareaAdapter,
       clientId: ALICE,
       foundingGraceMs: 0,
       name: "Alice",
@@ -39,6 +41,7 @@ describe("presence heartbeats", () => {
     aliceEl.selectionEnd = 4;
 
     const bob = createWeavo(room.join(), {
+      adapter: textareaAdapter,
       clientId: BOB,
       foundingGraceMs: 5_000,
       name: "Bob",
@@ -81,6 +84,7 @@ describe("presence heartbeats", () => {
     const heartbeatIntervalMs = 400;
 
     const alice = createWeavo(room.join(), {
+      adapter: textareaAdapter,
       clientId: ALICE,
       foundingGraceMs: 0,
       name: "Alice",
@@ -92,6 +96,7 @@ describe("presence heartbeats", () => {
     await waitUntilJoined(alice);
 
     const bob = createWeavo(room.join(), {
+      adapter: textareaAdapter,
       clientId: BOB,
       foundingGraceMs: 5_000,
       name: "Bob",

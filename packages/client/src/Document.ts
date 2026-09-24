@@ -24,17 +24,18 @@ import {
   type RawTransport,
 } from "@weavo/transport";
 import { createSubscription } from "./Subscription";
-import {
-  reconcileBefore,
-  transformPosition,
-  transformSnapshot,
-  type InputSnapshot,
-} from "./inputSnapshot";
-import { textChangeFromDiff, toTextChange } from "./textChange";
+import { toTextChange } from "./textChange";
 import { manageTransport } from "./transport";
-import type { CompositionState, TextChange } from "./types";
+import type {
+  InputSnapshot,
+  LocalInput,
+  RemoteChange,
+  WeavoAdapter,
+  WeavoAdapterHost,
+} from "./types";
 
-export type WeavoOptions = {
+export type WeavoOptions<TTarget = never> = {
+  adapter?: WeavoAdapter<TTarget>;
   clientId?: ClientId;
   onOp?: (op: Operation) => void;
   foundingGraceMs?: number;
@@ -61,15 +62,9 @@ const colorFromId = (clientId: ClientId): string => {
   return `hsl(${hue} 70% 45%)`;
 };
 
-const captureSnapshot = (el: HTMLTextAreaElement): InputSnapshot => ({
-  start: el.selectionStart,
-  end: el.selectionEnd,
-  value: el.value,
-});
-
-export const createWeavo = (
+export const createWeavo = <TTarget = never>(
   urlOrTransport: string | RawTransport,
-  options: WeavoOptions = {},
+  options: WeavoOptions<TTarget> = {},
 ) => {
   const restored = options.initial
     ? restoreFromStorage(options.initial.snapshot, options.initial.delta ?? [])
@@ -88,8 +83,7 @@ export const createWeavo = (
   const displayColor = options.color ?? colorFromId(clientId);
   let presenceName = displayName;
   let presenceColor = displayColor;
-
-  let boundEl: HTMLTextAreaElement | null = null;
+  let getLocalCursor: (() => number) | null = null;
 
   let membership!: MembershipHandle;
   const transport = createTransport(rawTransport, {
@@ -107,7 +101,7 @@ export const createWeavo = (
   membership = createMembership((message) => transport.send(message), {
     clientId,
     getPresence: () => ({
-      cursor: boundEl?.selectionStart ?? 0,
+      cursor: getLocalCursor?.() ?? 0,
       name: presenceName,
       color: presenceColor,
     }),
@@ -132,6 +126,7 @@ export const createWeavo = (
       : {}),
   });
   const subscription = createSubscription();
+  const remoteListeners = new Set<(change: RemoteChange) => void>();
   const gcTracker = createGCTracker();
   const gcGracePeriodMs =
     options.gcGracePeriodMs ?? options.removalTimeoutMs ?? 30_000;
@@ -159,26 +154,8 @@ export const createWeavo = (
     sweepGC();
   });
 
-  let before: InputSnapshot | null = null;
-  let pendingInput = false;
-  let composition: CompositionState | null = null;
-
-  const emitChange = (change: TextChange) => subscription.emit(change);
-
-  const applyRemoteToBound = (prevText: string, newText: string) => {
-    const change = textChangeFromDiff(prevText, newText);
-    if (!change) return;
-
-    if (boundEl) {
-      const selectionStart = boundEl.selectionStart;
-      const selectionEnd = boundEl.selectionEnd;
-      boundEl.value = newText;
-      boundEl.selectionStart = transformPosition(selectionStart, change);
-      boundEl.selectionEnd = transformPosition(selectionEnd, change);
-      if (before) before = transformSnapshot(before, change);
-    }
-    emitChange(change);
-  };
+  const emitChange = (change: ReturnType<typeof toTextChange>) =>
+    subscription.emit(change);
 
   const notifyOp = (op: Operation) => options.onOp?.(op);
 
@@ -191,25 +168,23 @@ export const createWeavo = (
 
   const onApplied = (op: Operation, index: number) => {
     notifyOp(op);
-
-    if (composition) {
-      const change = toTextChange(op, index);
-      composition.docStart = transformPosition(composition.docStart, change);
-      composition.docEnd = transformPosition(composition.docEnd, change);
-      emitChange(change);
-      noteAuthorCursor(op, index);
-      return;
-    }
-
-    const prevText = boundEl?.value ?? "";
-    applyRemoteToBound(prevText, getText(doc.store));
+    const change = toTextChange(op, index);
+    emitChange(change);
     noteAuthorCursor(op, index);
+    const text = getText(doc.store);
+    for (const listener of remoteListeners) {
+      listener({ op, index, change, text });
+    }
   };
 
-  const processLocalInput = (event: InputEvent, snapshot: InputSnapshot) => {
+  const applyLocal = (input: LocalInput, snapshot: InputSnapshot) => {
     if (!membership.isJoined()) return;
 
-    const applied = localInput(event, doc, snapshot);
+    const applied = localInput(
+      { inputType: input.inputType, data: input.data ?? null } as InputEvent,
+      doc,
+      snapshot,
+    );
     if (!applied) return;
     applied.forEach(({ op, index }) => {
       if (op.type === "insert") {
@@ -221,160 +196,34 @@ export const createWeavo = (
     });
   };
 
-  const resolveDelete = (
-    snapshot: InputSnapshot,
-    currentValue: string,
-  ): InputSnapshot | null => {
-    const removed = textChangeFromDiff(snapshot.value, currentValue);
-    if (!removed || !removed.delete) return null;
-    return {
-      start: removed.index,
-      end: removed.index + removed.delete,
-      value: snapshot.value,
-    };
-  };
-
-  const commitComposition = (comp: CompositionState) => {
-    const el = boundEl;
-    if (!el) return;
-
-    const tailLength = comp.value.length - comp.end;
-    const composedEnd = Math.max(comp.start, el.value.length - tailLength);
-    const composed = el.value.slice(comp.start, composedEnd);
-
-    if (composed.length > 0 || comp.docEnd > comp.docStart) {
-      processLocalInput(
-        new InputEvent("input", { inputType: "insertText", data: composed }),
-        { start: comp.docStart, end: comp.docEnd, value: getText(doc.store) },
-      );
-    }
-
-    applyRemoteToBound(el.value, getText(doc.store));
-    before = captureSnapshot(el);
-  };
-
   manageTransport(transport, doc, sv, buffer, onApplied, membership);
   transport.connect();
 
-  const bind = (el: HTMLTextAreaElement) => {
-    boundEl = el;
-
-    const text = getText(doc.store);
-    if (text) {
-      el.value = text;
-      before = captureSnapshot(el);
-    }
-
-    let unsubJoined: (() => void) | undefined;
-    if (!membership.isJoined()) {
-      el.readOnly = true;
-      unsubJoined = membership.onJoined(() => {
-        el.readOnly = false;
-        unsubJoined?.();
-        unsubJoined = undefined;
-      });
-    } else {
-      el.readOnly = false;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (composition) return;
-      if (event.key === "Backspace" || event.key === "Delete") {
-        before = captureSnapshot(el);
-        pendingInput = true;
-      }
-    };
-
-    const onBeforeInput = (event: Event) => {
-      if (!membership.isJoined()) {
-        event.preventDefault();
-        return;
-      }
-      if (composition) return;
-      before = captureSnapshot(event.target as HTMLTextAreaElement);
-      pendingInput = true;
-    };
-
-    const onInput = (event: Event) => {
-      const inputEvent = event as InputEvent;
-      if (composition || inputEvent.inputType === "insertCompositionText") {
-        return;
-      }
-      if (!before) return;
-
-      if (inputEvent.inputType.startsWith("delete")) {
-        const range = resolveDelete(before, el.value);
-        if (range) {
-          processLocalInput(
-            new InputEvent("input", { inputType: "deleteContentForward" }),
-            range,
-          );
-        }
-        before = captureSnapshot(el);
-        pendingInput = false;
-        return;
-      }
-
-      const snapshot = reconcileBefore(
-        before,
-        el.value,
-        inputEvent.inputType,
-        inputEvent.data,
-      );
-      before = snapshot;
-      processLocalInput(inputEvent, snapshot);
-      pendingInput = false;
-    };
-
-    const onCompositionStart = () => {
-      if (!membership.isJoined()) return;
-      composition = {
-        value: el.value,
-        start: el.selectionStart,
-        end: el.selectionEnd,
-        docStart: el.selectionStart,
-        docEnd: el.selectionEnd,
+  const host: WeavoAdapterHost = {
+    getText: () => getText(doc.store),
+    isJoined: () => membership.isJoined(),
+    onJoined: (listener) => membership.onJoined(() => listener()),
+    applyLocal,
+    onRemote: (listener) => {
+      remoteListeners.add(listener);
+      return () => {
+        remoteListeners.delete(listener);
       };
-      pendingInput = false;
-    };
-
-    const onCompositionEnd = () => {
-      const comp = composition;
-      composition = null;
-      if (comp) commitComposition(comp);
-    };
-
-    const refreshSnapshot = () => {
-      if (pendingInput || composition) return;
-      before = captureSnapshot(el);
-    };
-
-    el.addEventListener("keydown", onKeyDown, true);
-    el.addEventListener("beforeinput", onBeforeInput);
-    el.addEventListener("input", onInput);
-    el.addEventListener("compositionstart", onCompositionStart);
-    el.addEventListener("compositionend", onCompositionEnd);
-    el.addEventListener("click", refreshSnapshot);
-    el.addEventListener("select", refreshSnapshot);
-    el.addEventListener("keyup", refreshSnapshot);
-
-    return () => {
-      unsubJoined?.();
-      el.removeEventListener("keydown", onKeyDown, true);
-      el.removeEventListener("beforeinput", onBeforeInput);
-      el.removeEventListener("input", onInput);
-      el.removeEventListener("compositionstart", onCompositionStart);
-      el.removeEventListener("compositionend", onCompositionEnd);
-      el.removeEventListener("click", refreshSnapshot);
-      el.removeEventListener("select", refreshSnapshot);
-      el.removeEventListener("keyup", refreshSnapshot);
-      if (boundEl === el) boundEl = null;
-      composition = null;
-    };
+    },
+    setCursorSource: (getCursor) => {
+      getLocalCursor = getCursor;
+    },
   };
 
   return {
-    bind,
+    bind: (target: TTarget) => {
+      if (!options.adapter) {
+        throw new Error(
+          "createWeavo requires an adapter before bind() can be used",
+        );
+      }
+      return options.adapter.bind(host, target);
+    },
     textSubscribe: subscription.subscribe,
     onPresence: membership.onPresence,
     getPresence: () => membership.getPresence(),
@@ -390,3 +239,5 @@ export const createWeavo = (
     membership,
   };
 };
+
+export type Weavo<TTarget = never> = ReturnType<typeof createWeavo<TTarget>>;

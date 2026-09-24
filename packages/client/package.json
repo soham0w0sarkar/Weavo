@@ -1,13 +1,12 @@
 {
   "name": "@weavo/client",
-  "version": "2.0.2",
-  "description": "Real-time collaborative text editing for the browser — bind a textarea, connect to a WebSocket room, edits sync automatically.",
+  "version": "3.0.0",
+  "description": "Real-time collaborative text editing for the browser — connect a Weavo document to a WebSocket room; pair with an editor adapter to bind a textarea, Monaco, or others.",
   "keywords": [
     "weavo",
     "collaborative-editing",
     "crdt",
     "real-time",
-    "textarea",
     "text-editing",
     "websocket",
     "browser",

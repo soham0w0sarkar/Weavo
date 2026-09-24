@@ -15,6 +15,7 @@ import {
   type RawTransport,
 } from "@weavo/transport";
 import { createWeavo } from "../src/Document";
+import { textareaAdapter } from "../../textarea-adapter/src";
 import { createTextarea, flushMicrotasks } from "./helpers/editor";
 
 const ALICE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as ClientId;
@@ -74,6 +75,7 @@ describe("ops encoded against an unknown membership version", () => {
   test("wait in the buffer, then apply once the table arrives", async () => {
     const { raw, received, deliver } = createControlledTransport();
     const weavo = createWeavo(raw, {
+      adapter: textareaAdapter,
       clientId: ALICE,
       initialMembers: [ALICE],
       initialVersion: 1,

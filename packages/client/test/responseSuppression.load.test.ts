@@ -11,7 +11,8 @@ import {
 } from "@weavo/core";
 import { createMembership } from "@weavo/membership";
 import { update, createBuffer, type StateVector } from "@weavo/sync";
-import { createWeavo } from "../src/Document";
+import { createWeavo, type Weavo } from "../src/Document";
+import { textareaAdapter } from "../../textarea-adapter/src";
 import { manageTransport } from "../src/transport";
 import {
   createCountingRoom,
@@ -50,6 +51,7 @@ const seededPeer = (
   members: ClientId[],
 ) =>
   createWeavo(room.join(), {
+    adapter: textareaAdapter,
     clientId,
     initialMembers: members,
     heartbeatIntervalMs: 0,
@@ -123,7 +125,7 @@ describe("sync-response suppression load", () => {
 
     room.resetStats();
 
-    const peers: ReturnType<typeof createWeavo>[] = [writer];
+    const peers: Weavo<HTMLTextAreaElement>[] = [writer];
     for (let i = 1; i < PEER_COUNT; i++) {
       peers.push(seededPeer(room, members[i]!, members));
     }
@@ -147,7 +149,7 @@ describe("sync-response suppression load", () => {
     const writerEl = createTextarea();
     writer.bind(writerEl);
 
-    const peers: ReturnType<typeof createWeavo>[] = [writer];
+    const peers: Weavo<HTMLTextAreaElement>[] = [writer];
     const elements: HTMLTextAreaElement[] = [writerEl];
 
     for (let i = 1; i < PEER_COUNT; i++) {

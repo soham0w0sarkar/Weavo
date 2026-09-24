@@ -1,5 +1,6 @@
 import { generateClientId, type ClientId } from "@weavo/core";
-import { createWeavo } from "../../src/Document";
+import { createWeavo, type Weavo } from "../../src/Document";
+import { textareaAdapter } from "../../../textarea-adapter/src";
 import { MemoryRoom } from "./memoryTransport";
 
 export const flushMicrotasks = async () => {
@@ -217,13 +218,13 @@ export const composeText = (el: HTMLTextAreaElement, stages: string[]) => {
 };
 
 export type Peer = {
-  weavo: ReturnType<typeof createWeavo>;
+  weavo: Weavo<HTMLTextAreaElement>;
   el: HTMLTextAreaElement;
   unbind: () => void;
 };
 
-export const waitUntilJoined = (
-  weavo: ReturnType<typeof createWeavo>,
+export const waitUntilJoined = <TTarget>(
+  weavo: Weavo<TTarget>,
   timeoutMs = 5000,
 ) =>
   new Promise<void>((resolve, reject) => {
@@ -248,6 +249,7 @@ export const createPeer = async (
 ): Promise<Peer> => {
   const clientId = options.clientId ?? generateClientId();
   const weavo = createWeavo(room.join(), {
+    adapter: textareaAdapter,
     clientId,
     initialMembers: options.members ?? [clientId],
     heartbeatIntervalMs: 0,
