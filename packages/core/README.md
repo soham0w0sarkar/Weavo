@@ -103,11 +103,12 @@ console.log(getText(restored.store));
 
 ## Related packages
 
-| Package            | Role                                                   |
-| ------------------ | ------------------------------------------------------ |
-| `@weavo/client`    | Browser textarea binding (recommended entry point)     |
-| `@weavo/sync`      | State-vector sync and out-of-order operation buffering |
-| `@weavo/transport` | WebSocket wire protocol                                |
+| Package                   | Role                                                   |
+| ------------------------- | ------------------------------------------------------ |
+| `@weavo/client`           | Browser document + adapter host                        |
+| `@weavo/textarea-adapter` | Native textarea binding                                |
+| `@weavo/sync`             | State-vector sync and out-of-order operation buffering |
+| `@weavo/transport`        | WebSocket wire protocol                                |
 
 ## Development
 

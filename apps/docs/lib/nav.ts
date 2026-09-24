@@ -28,6 +28,7 @@ export const NAV: NavSection[] = [
     items: [
       { href: "/packages", label: "Package map" },
       { href: "/packages/client", label: "@weavo/client" },
+      { href: "/packages/textarea-adapter", label: "@weavo/textarea-adapter" },
       { href: "/packages/membership", label: "@weavo/membership" },
       { href: "/packages/core", label: "@weavo/core" },
       { href: "/packages/sync", label: "@weavo/sync" },

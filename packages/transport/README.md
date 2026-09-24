@@ -143,12 +143,13 @@ const transport = createTransport(raw);
 
 ## Related packages
 
-| Package             | Role                                       |
-| ------------------- | ------------------------------------------ |
-| `@weavo/core`       | CRDT ops and `DocumentSnapshot`            |
-| `@weavo/sync`       | State vectors used in sync requests        |
-| `@weavo/membership` | Membership / consensus types and table     |
-| `@weavo/client`     | Wires transport + membership to a textarea |
+| Package                   | Role                                   |
+| ------------------------- | -------------------------------------- |
+| `@weavo/core`             | CRDT ops and `DocumentSnapshot`        |
+| `@weavo/sync`             | State vectors used in sync requests    |
+| `@weavo/membership`       | Membership / consensus types and table |
+| `@weavo/client`           | Wires transport + membership           |
+| `@weavo/textarea-adapter` | Native textarea binding                |
 
 ## Development
 

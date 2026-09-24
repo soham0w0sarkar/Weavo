@@ -49,7 +49,8 @@ export default function ArchitecturePage() {
 @weavo/sync         state vectors + dependency buffer
 @weavo/transport    binary frames, codecs, WebSocket
 @weavo/membership   shortId table, CASPaxos, presence
-@weavo/client       textarea adapter + orchestration
+@weavo/client       document + adapter host
+@weavo/textarea-adapter  native textarea bind
 weavo-server        dumb relay`}</code>
       </pre>
 

@@ -44,13 +44,17 @@ Rough roadmap (more “what the last problem forced” than a product plan):
     └─ GC frontier (min of peer SVs from heartbeats)
 
 @weavo/client
-    ├─ Textarea adapter + selection transform
-    ├─ IME composition + grapheme-aware deletes
+    ├─ Document orchestration (replica, sync, transport, membership)
     ├─ Membership join before ops / sync-request
     ├─ IdCodec wired from membership into transport
     ├─ Presence / identity / disconnect(LEAVE)
     ├─ Tombstone GC on heartbeat (frontier + grace)
-    └─ Orchestrates sync + transport + membership
+    └─ Editor-agnostic adapter host (`applyLocal` / `onRemote`)
+
+@weavo/textarea-adapter
+    ├─ Native textarea bind
+    ├─ Selection transform + IME composition
+    └─ Grapheme-aware deletes from the DOM
 
 apps/weavo-server
     └─ Dumb relay — forwards frames, no protocol
@@ -267,11 +271,11 @@ It is **not** fine for “how long since I last heard from them.” Stamping `la
 
 Rule we landed on:
 
-| Field / path | Clock | Job |
-| ------------ | ----- | --- |
-| Heartbeat `timestamp` | Sender | Order that peer’s own presence writes (LWW) |
-| Liveness `lastSeen` | Local receive time | Suspect / remove after silence |
-| Presence `receivedAt` | Local receive time | Evict stale UI entries |
+| Field / path          | Clock              | Job                                         |
+| --------------------- | ------------------ | ------------------------------------------- |
+| Heartbeat `timestamp` | Sender             | Order that peer’s own presence writes (LWW) |
+| Liveness `lastSeen`   | Local receive time | Suspect / remove after silence              |
+| Presence `receivedAt` | Local receive time | Evict stale UI entries                      |
 
 `weavo.onPresence` exposes `Map<clientId, { cursor, name, color }>`. Leave is the durable path: graceful `LEAVE` or silence past the removal timeout proposes `removeMember` on the same prepare → accept → commit spine.
 
@@ -279,7 +283,7 @@ Rule we landed on:
 
 Refreshing cursors only on heartbeats makes a remote caret visibly trail the text it is typing — the character lands instantly, the caret catches up a heartbeat later. So the client also nudges presence on arrival: when an insert from peer `P` applies at index `i`, it calls `membership.setCursor(P, i + 1)` and listeners fire. The author is read off the op's own `id`, so this is the client package's job, not the app's.
 
-The nudge deliberately does **not** touch `timestamp` or `receivedAt`. LWW ordering stays the sender's story — `P`'s next heartbeat, with a higher timestamp, overwrites the guess — and an op is not treated as proof of liveness. Deletes carry the *target's* id rather than the deleter's, so they cannot be attributed; those carets still wait for a heartbeat. Peers who are not the author also drift by the length of the change until their next heartbeat.
+The nudge deliberately does **not** touch `timestamp` or `receivedAt`. LWW ordering stays the sender's story — `P`'s next heartbeat, with a higher timestamp, overwrites the guess — and an op is not treated as proof of liveness. Deletes carry the _target's_ id rather than the deleter's, so they cannot be attributed; those carets still wait for a heartbeat. Peers who are not the author also drift by the length of the change until their next heartbeat.
 
 One knock-on: presence listeners now fire per remote keystroke, and tombstone GC hangs off that same callback. So the client sweeps only when the frontier actually moved (or candidates are still pending grace) instead of walking every node on each op.
 
@@ -309,11 +313,11 @@ Heartbeats already carry each peer's state vector. The GC frontier is the per-`c
 frontier[alice] = min(our alice clock, …each presence peer's alice clock)
 ```
 
-Any tombstone whose insert clock is `≤ frontier[author]` is *eligible*. We still wait a grace period (default 30s, aligned with removal timeout) before unlinking it from the CRDT list and dropping it from the map — covers in-flight ops from peers who are still in presence. A peer who went silent drops out of presence at the suspect timeout, which unblocks the frontier without a dedicated GC protocol.
+Any tombstone whose insert clock is `≤ frontier[author]` is _eligible_. We still wait a grace period (default 30s, aligned with removal timeout) before unlinking it from the CRDT list and dropping it from the map — covers in-flight ops from peers who are still in presence. A peer who went silent drops out of presence at the suspect timeout, which unblocks the frontier without a dedicated GC protocol.
 
 Two local guards on top of the design:
 
-1. **Never GC a tombstone still referenced** as someone else's `leftOrigin` / `rightOrigin` in *our* store. Typing “ab” then deleting `a` leaves `b` pointing at `a`; removing `a` would break insert ancestry walks. Unreferenced tombstones (end of a deleted run) fall out over successive sweeps.
+1. **Never GC a tombstone still referenced** as someone else's `leftOrigin` / `rightOrigin` in _our_ store. Typing “ab” then deleting `a` leaves `b` pointing at `a`; removing `a` would break insert ancestry walks. Unreferenced tombstones (end of a deleted run) fall out over successive sweeps.
 2. **Self's presence entry is ignored** when computing the min — we always use the live SV so ops since the last heartbeat don't falsely hold the frontier back.
 
 Failure modes match presence: offline peer sticks the frontier until eviction; reconnect before removal re-enters the min; reconnect after membership remove is a fresh join (new shortId) and any stale-anchor ops land in the dependency buffer. Different peers may GC different prefixes; each run is locally safe and they converge.
@@ -324,19 +328,19 @@ Failure modes match presence: offline peer sticks the frontier until eviction; r
 
 For every new idea: **whose package?**
 
-| Idea                                | Home                |
-| ----------------------------------- | ------------------- |
-| Concurrent insert order             | `@weavo/core`       |
-| “I have clocks you don't”           | `@weavo/sync`       |
-| Wire + persistence serialization    | `@weavo/transport`  |
-| Member set / shortId table / commit | `@weavo/membership` |
-| Presence / liveness heartbeats           | `@weavo/membership` |
-| Local clock for silence, sender for LWW  | `@weavo/membership` |
-| GC frontier from heartbeat SVs           | `@weavo/membership` |
-| Physical tombstone GC + grace            | `@weavo/core` + `@weavo/client` |
-| Forward bytes                            | relay               |
-| DOM textarea + selection + IME           | `@weavo/client`     |
-| WTF-8 for lone surrogates                | `@weavo/transport`  |
+| Idea                                    | Home                            |
+| --------------------------------------- | ------------------------------- |
+| Concurrent insert order                 | `@weavo/core`                   |
+| “I have clocks you don't”               | `@weavo/sync`                   |
+| Wire + persistence serialization        | `@weavo/transport`              |
+| Member set / shortId table / commit     | `@weavo/membership`             |
+| Presence / liveness heartbeats          | `@weavo/membership`             |
+| Local clock for silence, sender for LWW | `@weavo/membership`             |
+| GC frontier from heartbeat SVs          | `@weavo/membership`             |
+| Physical tombstone GC + grace           | `@weavo/core` + `@weavo/client` |
+| Forward bytes                           | relay                           |
+| DOM textarea + selection + IME          | `@weavo/textarea-adapter`       |
+| WTF-8 for lone surrogates               | `@weavo/transport`              |
 
 ---
 

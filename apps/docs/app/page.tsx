@@ -11,7 +11,7 @@ export default function HomePage() {
         <h1 className={styles.brandName}>Weavo</h1>
       </div>
       <p className={styles.lede}>
-        Collaborative text for the browser. Bind a textarea, join a room, and
+        Collaborative text for the browser. Bind an editor, join a room, and
         peers converge over a CRDT — no central editor server required.
       </p>
       <div className={styles.actions}>
@@ -46,7 +46,8 @@ export default function HomePage() {
         <Link href="/packages" className={styles.card}>
           <p className={styles.cardTitle}>Package map</p>
           <p className={styles.cardBody}>
-            core, sync, transport, membership, client — one concern each.
+            core, sync, transport, membership, client, adapters — one concern
+            each.
           </p>
         </Link>
       </div>

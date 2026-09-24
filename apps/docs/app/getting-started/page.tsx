@@ -10,13 +10,15 @@ export default function GettingStartedPage() {
     <article className={styles.prose}>
       <h1 className={styles.title}>Getting started</h1>
       <p className={styles.subtitle}>
-        A dumb WebSocket relay plus <code className={styles.inlineCode}>@weavo/client</code>{" "}
-        is enough to sync a textarea.
+        A dumb WebSocket relay plus{" "}
+        <code className={styles.inlineCode}>@weavo/client</code> and{" "}
+        <code className={styles.inlineCode}>@weavo/textarea-adapter</code> is
+        enough to sync a textarea.
       </p>
 
       <h2 className={styles.h2}>Install</h2>
       <pre className={styles.pre}>
-        <code>{`npm install @weavo/client`}</code>
+        <code>{`npm install @weavo/client @weavo/textarea-adapter`}</code>
       </pre>
 
       <h2 className={styles.h2}>Relay</h2>
@@ -45,8 +47,11 @@ console.log("ws://localhost:8080");`}</code>
       <h2 className={styles.h2}>Browser</h2>
       <pre className={styles.pre}>
         <code>{`import { createWeavo } from "@weavo/client";
+import { textareaAdapter } from "@weavo/textarea-adapter";
 
-const weavo = createWeavo("ws://localhost:8080?room=notes");
+const weavo = createWeavo("ws://localhost:8080?room=notes", {
+  adapter: textareaAdapter,
+});
 const el = document.querySelector("textarea")!;
 const unbind = weavo.bind(el);
 
@@ -63,6 +68,7 @@ weavo.disconnect(); // broadcasts LEAVE, then closes`}</code>
       <pre className={styles.pre}>
         <code>{`import { useEffect, useRef } from "react";
 import { createWeavo } from "@weavo/client";
+import { textareaAdapter } from "@weavo/textarea-adapter";
 
 export function CollaborativeTextarea({ roomUrl }: { roomUrl: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -71,6 +77,7 @@ export function CollaborativeTextarea({ roomUrl }: { roomUrl: string }) {
     const el = ref.current;
     if (!el) return;
     const weavo = createWeavo(roomUrl, {
+      adapter: textareaAdapter,
       name: "Ada",
       color: "#0f766e",
     });

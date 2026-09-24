@@ -13,9 +13,9 @@
 
 ---
 
-Weavo turns any native `<textarea>` into a collaborative editor with a single function call.
+Weavo turns any native `<textarea>` into a collaborative editor.
 
-No CRDT knowledge. No editor framework. No React dependency. Just bind a textarea, connect to a room, and every participant stays in sync.
+No CRDT knowledge. No editor framework. No React dependency. Bind a textarea, connect to a room, and every participant stays in sync.
 
 **Demo:** https://soham0w0sarkar.github.io/Weavo/
 
@@ -36,19 +36,19 @@ No CRDT knowledge. No editor framework. No React dependency. Just bind a textare
 ## Installation
 
 ```bash
-npm install @weavo/client
+npm install @weavo/client @weavo/textarea-adapter
 ```
 
 or
 
 ```bash
-pnpm add @weavo/client
+pnpm add @weavo/client @weavo/textarea-adapter
 ```
 
 or
 
 ```bash
-bun add @weavo/client
+bun add @weavo/client @weavo/textarea-adapter
 ```
 
 ---
@@ -83,13 +83,16 @@ console.log("ws://localhost:8080");
 ### 2. Browser client
 
 ```bash
-npm install @weavo/client
+npm install @weavo/client @weavo/textarea-adapter
 ```
 
 ```ts
 import { createWeavo } from "@weavo/client";
+import { textareaAdapter } from "@weavo/textarea-adapter";
 
-const weavo = createWeavo("ws://localhost:8080");
+const weavo = createWeavo("ws://localhost:8080", {
+  adapter: textareaAdapter,
+});
 
 const textarea = document.querySelector("textarea")!;
 const dispose = weavo.bind(textarea);
@@ -199,7 +202,7 @@ No polling.
 ### React
 
 ```tsx
-const weavo = createWeavo(url);
+const weavo = createWeavo(url, { adapter: textareaAdapter });
 
 useEffect(() => {
   if (!ref.current) return;
@@ -242,12 +245,13 @@ Instead, Weavo provides a reliable synchronization layer that can be integrated 
 
 This repository is a monorepo containing:
 
-| Package            | Description                  |
-| ------------------ | ---------------------------- |
-| `@weavo/client`    | Browser client               |
-| `@weavo/core`      | Collaborative editing engine |
-| `@weavo/sync`      | Synchronization protocol     |
-| `@weavo/transport` | Transport abstraction        |
+| Package                   | Description                  |
+| ------------------------- | ---------------------------- |
+| `@weavo/client`           | Browser document + sync      |
+| `@weavo/textarea-adapter` | Native textarea binding      |
+| `@weavo/core`             | Collaborative editing engine |
+| `@weavo/sync`             | Synchronization protocol     |
+| `@weavo/transport`        | Transport abstraction        |
 
 Design notes: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 

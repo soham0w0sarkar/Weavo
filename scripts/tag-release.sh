@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VALID_PKGS=(core sync transport client membership)
+VALID_PKGS=(core sync transport client membership textarea-adapter)
 
 usage() {
   echo "Usage: bun run tag-release <package> <version> [<package> <version> ...]" >&2

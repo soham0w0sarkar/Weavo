@@ -10,7 +10,12 @@ const PACKAGES = [
   {
     href: "/packages/client",
     name: "@weavo/client",
-    body: "Bind a textarea, join, sync ops, presence, disconnect.",
+    body: "Document, join, sync ops, presence, disconnect. No editor.",
+  },
+  {
+    href: "/packages/textarea-adapter",
+    name: "@weavo/textarea-adapter",
+    body: "Bind a textarea: IME, selection, remote apply.",
   },
   {
     href: "/packages/membership",
@@ -39,8 +44,8 @@ export default function PackagesPage() {
     <article className={styles.prose}>
       <h1 className={styles.title}>Package map</h1>
       <p className={styles.subtitle}>
-        One concern per package. If a change wants two packages rewritten for one
-        idea, the line was drawn wrong.
+        One concern per package. If a change wants two packages rewritten for
+        one idea, the line was drawn wrong.
       </p>
       <div className={styles.cards}>
         {PACKAGES.map((pkg) => (

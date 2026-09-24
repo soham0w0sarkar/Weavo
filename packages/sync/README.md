@@ -70,12 +70,13 @@ for (const { op, index } of flushMembership(buffer, doc, membership)) {
 
 ## Related packages
 
-| Package             | Role                                         |
-| ------------------- | -------------------------------------------- |
-| `@weavo/core`       | Document replicas and CRDT operations        |
-| `@weavo/membership` | Membership tables used to resolve shortIds   |
-| `@weavo/transport`  | Sends sync requests/responses over WebSocket |
-| `@weavo/client`     | End-to-end browser integration               |
+| Package                   | Role                                         |
+| ------------------------- | -------------------------------------------- |
+| `@weavo/core`             | Document replicas and CRDT operations        |
+| `@weavo/membership`       | Membership tables used to resolve shortIds   |
+| `@weavo/transport`        | Sends sync requests/responses over WebSocket |
+| `@weavo/client`           | End-to-end browser document                  |
+| `@weavo/textarea-adapter` | Native textarea binding                      |
 
 ## Development
 
