@@ -1,0 +1,56 @@
+{
+  "name": "@weavo/monaco-adapter",
+  "version": "1.0.0",
+  "description": "Bind Monaco Editor to a Weavo collaborative document.",
+  "keywords": [
+    "weavo",
+    "monaco",
+    "adapter",
+    "collaborative-editing",
+    "crdt",
+    "code-editor"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soham0w0sarkar/Weavo.git",
+    "directory": "packages/monaco-adapter"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@weavo/client": "^3.0.0"
+  },
+  "peerDependencies": {
+    "monaco-editor": "^0.56.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "bun-types": "^1.3.9",
+    "monaco-editor": "^0.56.0",
+    "tsup": "^8.5.1",
+    "typescript": "5.9.2"
+  }
+}

@@ -7,6 +7,7 @@
 #   weavo-client@1.2.3
 #   weavo-membership@0.1.0
 #   weavo-textarea-adapter@1.0.0
+#   weavo-monaco-adapter@1.0.0
 #
 # Push tags: bun run tag-release core 1.2.3 membership 0.1.0
 
@@ -21,10 +22,11 @@ on:
       - "weavo-client@*"
       - "weavo-membership@*"
       - "weavo-textarea-adapter@*"
+      - "weavo-monaco-adapter@*"
   workflow_dispatch:
     inputs:
       package:
-        description: "Package short name (core, sync, transport, client, membership, textarea-adapter)"
+        description: "Package short name (core, sync, transport, client, membership, textarea-adapter, monaco-adapter)"
         required: true
         type: choice
         options:
@@ -34,6 +36,7 @@ on:
           - client
           - membership
           - textarea-adapter
+          - monaco-adapter
 
 permissions:
   contents: read
@@ -65,7 +68,7 @@ jobs:
             fi
             version=$(node -p "require('./$dir/package.json').version")
           else
-            if [[ ! "$REF_NAME" =~ ^weavo-(core|sync|transport|client|membership|textarea-adapter)@(.+)$ ]]; then
+            if [[ ! "$REF_NAME" =~ ^weavo-(core|sync|transport|client|membership|textarea-adapter|monaco-adapter)@(.+)$ ]]; then
               echo "Invalid release tag: $REF_NAME" >&2
               echo "Expected: weavo-<package>@<semver> (e.g. weavo-core@1.2.3)" >&2
               exit 1
