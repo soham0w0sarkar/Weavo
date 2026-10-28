@@ -8,13 +8,14 @@ Each session uses a room ID stored in the browser — no query params in the URL
 
 ## Run locally
 
-```bash
-# Terminal 1 — Weavo server (port 8080)
-bun run dev --filter=weavo-server
+From the repo root:
 
-# Terminal 2 — demo app (port 3000)
-bun run dev --filter=demo
+```bash
+bun run dev
+# or: npm run dev
 ```
+
+That starts the Weavo server (port 8080) and the demo app (port 3000) together.
 
 Open [http://localhost:3000](http://localhost:3000). Copy the room ID and open Join in another tab to sync edits.
 
