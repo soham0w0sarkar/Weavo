@@ -6,7 +6,7 @@ import styles from "../page.module.css";
 export default function MonacoPage() {
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <main className={styles.mainWide}>
         <DemoRoom editor="monaco" />
       </main>
       <h1 className={styles.brandMark}>

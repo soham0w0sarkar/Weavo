@@ -19,6 +19,13 @@
   flex-direction: column;
 }
 
+.mainWide {
+  width: 100%;
+  max-width: 56rem;
+  display: flex;
+  flex-direction: column;
+}
+
 .editorSwitch {
   display: flex;
   width: fit-content;
