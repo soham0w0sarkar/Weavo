@@ -10,10 +10,11 @@ const defaultOptions = {
   reconnectMaxDelay: 30_000,
 } satisfies Required<WebSocketTransportOptions>;
 
-const toUint8Array = (data: unknown): Uint8Array => {
+const toUint8Array = (data: unknown): Uint8Array | null => {
   if (data instanceof Uint8Array) return data;
   if (data instanceof ArrayBuffer) return new Uint8Array(data);
-  throw new Error("Unsupported WebSocket message type");
+  // Ignore text/other frames (e.g. stray JSON on a shared relay). Weavo speaks binary only.
+  return null;
 };
 
 export const createWebSocketTransport = (
@@ -87,6 +88,7 @@ export const createWebSocketTransport = (
 
     socket.addEventListener("message", (event) => {
       const data = toUint8Array(event.data);
+      if (!data) return;
       messageListeners.forEach((cb) => cb(data));
     });
 
