@@ -1,13 +1,3 @@
-/**
- * Demo side-channel on the Weavo room relay.
- *
- * The relay is dumb and forwards opaque frames to everyone in a room. Weavo's
- * CRDT client speaks a binary protocol, so the bus uses a *sibling* room
- * (`${room}::weavo-bus`) instead of sharing the document room — otherwise JSON
- * diagnostics frames land on the CRDT socket and blow up the transport.
- */
-
-/** Parallel room id so bus JSON never mixes with CRDT binary frames. */
 export const busRoomUrl = (weavoUrl: string): string => {
   const url = new URL(weavoUrl);
   const room = url.searchParams.get("room") ?? "default";
@@ -70,9 +60,7 @@ export const openRoomBus = (
       try {
         const parsed: unknown = JSON.parse(event.data);
         if (isRoomBusMessage(parsed)) onMessage(parsed);
-      } catch {
-        // Binary Weavo frames from mistaken peers — ignore.
-      }
+      } catch {}
     });
 
     ws.addEventListener("close", () => {

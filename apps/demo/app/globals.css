@@ -113,7 +113,6 @@ button {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tint) 20%, transparent);
 }
 
-/* @monaco-editor/react root + editor must fill the clipped canvas. */
 .monaco-canvas > div:not(.editor-joining) {
   position: relative;
   z-index: 1;

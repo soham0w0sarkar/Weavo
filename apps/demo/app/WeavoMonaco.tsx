@@ -22,7 +22,6 @@ const prefersDark = () =>
   typeof window !== "undefined" &&
   window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-/** Built-in Monaco themes only — custom defineTheme was crashing on color parse. */
 const editorTheme = (dark: boolean) => (dark ? "vs-dark" : "light");
 
 export function WeavoMonaco({

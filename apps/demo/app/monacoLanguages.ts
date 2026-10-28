@@ -16,7 +16,6 @@ export type DemoLanguage = (typeof DEMO_LANGUAGES)[number]["id"];
 
 export const DEFAULT_DEMO_LANGUAGE: DemoLanguage = "typescript";
 
-/** Languages with Monaco's built-in workers (IntelliSense + diagnostics). */
 export const hasLanguageService = (language: string) =>
   language === "typescript" ||
   language === "javascript" ||
@@ -24,11 +23,6 @@ export const hasLanguageService = (language: string) =>
   language === "css" ||
   language === "html";
 
-/**
- * Turn on Monaco's in-browser TS/JS language service.
- * This is not a full project LSP (no node_modules), but it gives completions,
- * hover, signature help, and syntax/semantic squiggles in the demo.
- */
 export const configureLanguageServices = (monaco: Monaco) => {
   const ts = monaco.languages.typescript;
 

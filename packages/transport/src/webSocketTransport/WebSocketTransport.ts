@@ -13,7 +13,6 @@ const defaultOptions = {
 const toUint8Array = (data: unknown): Uint8Array | null => {
   if (data instanceof Uint8Array) return data;
   if (data instanceof ArrayBuffer) return new Uint8Array(data);
-  // Ignore text/other frames (e.g. stray JSON on a shared relay). Weavo speaks binary only.
   return null;
 };
 

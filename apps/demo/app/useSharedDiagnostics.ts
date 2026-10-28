@@ -46,10 +46,6 @@ const fromShared = (
     ...(marker.code ? { code: marker.code } : {}),
   }));
 
-/**
- * Publish local Monaco markers to the room and paint peers' markers inline.
- * Uses a second WebSocket on the same room URL (relay forwards opaque frames).
- */
 export const useSharedDiagnostics = ({
   monaco,
   editorInstance,
@@ -112,10 +108,10 @@ export const useSharedDiagnostics = ({
     const publish = () => {
       const markers = monaco.editor
         .getModelMarkers({ resource: model.uri })
-        .filter((marker: editor.IMarker) => {
-          // Only publish markers from local language services, not peers'.
-          return !marker.owner.startsWith("weavo.diagnostics:");
-        });
+        .filter(
+          (marker: editor.IMarker) =>
+            !marker.owner.startsWith("weavo.diagnostics:"),
+        );
 
       busRef.current?.send({
         v: 1,
