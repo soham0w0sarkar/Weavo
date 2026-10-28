@@ -18,8 +18,10 @@ const nextConfig = {
   transpilePackages: [
     "@weavo/client",
     "@weavo/core",
+    "@weavo/monaco-adapter",
     "@weavo/membership",
     "@weavo/sync",
+    "@weavo/textarea-adapter",
     "@weavo/transport",
   ],
   images: {

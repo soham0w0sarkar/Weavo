@@ -19,6 +19,30 @@
   flex-direction: column;
 }
 
+.editorSwitch {
+  display: flex;
+  width: fit-content;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  background: var(--surface);
+}
+
+.editorSwitch a {
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.45rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  text-decoration: none;
+}
+
+.editorSwitch a.editorActive {
+  background: color-mix(in srgb, var(--user-tint, var(--ring)) 12%, transparent);
+  color: var(--foreground);
+}
+
 .brandMark {
   position: fixed;
   bottom: max(1.5rem, env(safe-area-inset-bottom));
@@ -345,6 +369,9 @@
 .toolbar {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   width: 100%;
 }
 

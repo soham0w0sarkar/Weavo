@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { WeavoMonaco } from "./WeavoMonaco";
 import { WeavoTextarea } from "./WeavoTextarea";
 import { IdentityPicker } from "./IdentityPicker";
 import { buildWeavoRoomUrl } from "./lib/weavoUrl";
@@ -24,7 +26,28 @@ import styles from "./page.module.css";
 
 type ServerStatus = "checking" | "ready" | "unavailable";
 
-export function DemoRoom() {
+const EditorSwitch = ({ editor }: { editor: "textarea" | "monaco" }) => (
+  <nav className={styles.editorSwitch} aria-label="Editor">
+    <Link
+      href="/"
+      className={editor === "textarea" ? styles.editorActive : undefined}
+    >
+      Textarea
+    </Link>
+    <Link
+      href="/monaco"
+      className={editor === "monaco" ? styles.editorActive : undefined}
+    >
+      Monaco
+    </Link>
+  </nav>
+);
+
+export function DemoRoom({
+  editor = "textarea",
+}: {
+  editor?: "textarea" | "monaco";
+}) {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [serverStatus, setServerStatus] = useState<ServerStatus>("checking");
@@ -143,6 +166,7 @@ export function DemoRoom() {
   if (!roomId) {
     return (
       <div className={styles.lobby}>
+        <EditorSwitch editor={editor} />
         <IdentityPicker
           name={displayName}
           color={displayColor}
@@ -212,6 +236,7 @@ export function DemoRoom() {
   return (
     <div className={styles.session} style={tint}>
       <div className={styles.toolbar}>
+        <EditorSwitch editor={editor} />
         <div className={styles.toolbarDesktop}>
           <code className={styles.roomId} title={roomId}>
             {roomId}
@@ -270,12 +295,21 @@ export function DemoRoom() {
         </div>
       </div>
 
-      <WeavoTextarea
-        weavoUrl={buildWeavoRoomUrl(roomId)}
-        skipRestoreOnce={skipRestoreOnce}
-        displayName={displayName.trim() || getOrCreateDisplayName()}
-        displayColor={displayColor}
-      />
+      {editor === "monaco" ? (
+        <WeavoMonaco
+          weavoUrl={buildWeavoRoomUrl(roomId)}
+          skipRestoreOnce={skipRestoreOnce}
+          displayName={displayName.trim() || getOrCreateDisplayName()}
+          displayColor={displayColor}
+        />
+      ) : (
+        <WeavoTextarea
+          weavoUrl={buildWeavoRoomUrl(roomId)}
+          skipRestoreOnce={skipRestoreOnce}
+          displayName={displayName.trim() || getOrCreateDisplayName()}
+          displayColor={displayColor}
+        />
+      )}
     </div>
   );
 }
