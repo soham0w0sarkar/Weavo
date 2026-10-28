@@ -51,6 +51,7 @@ export default function ArchitecturePage() {
 @weavo/membership   shortId table, CASPaxos, presence
 @weavo/client       document + adapter host
 @weavo/textarea-adapter  native textarea bind
+@weavo/monaco-adapter    Monaco model bind
 weavo-server        dumb relay`}</code>
       </pre>
 

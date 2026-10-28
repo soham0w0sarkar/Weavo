@@ -18,6 +18,11 @@ const PACKAGES = [
     body: "Bind a textarea: IME, selection, remote apply.",
   },
   {
+    href: "/packages/monaco-adapter",
+    name: "@weavo/monaco-adapter",
+    body: "Bind Monaco: model changes, multi-cursor, IME.",
+  },
+  {
     href: "/packages/membership",
     name: "@weavo/membership",
     body: "Versioned shortId tables, CASPaxos, heartbeats, leave.",

@@ -56,6 +56,11 @@ Rough roadmap (more “what the last problem forced” than a product plan):
     ├─ Selection transform + IME composition
     └─ Grapheme-aware deletes from the DOM
 
+@weavo/monaco-adapter
+    ├─ Monaco model changes ↔ flat UTF-16 offsets
+    ├─ Multi-selection transform + IME composition
+    └─ Remote apply without local echo / undo pollution
+
 apps/weavo-server
     └─ Dumb relay — forwards frames, no protocol
 ```
@@ -340,6 +345,7 @@ For every new idea: **whose package?**
 | Physical tombstone GC + grace           | `@weavo/core` + `@weavo/client` |
 | Forward bytes                           | relay                           |
 | DOM textarea + selection + IME          | `@weavo/textarea-adapter`       |
+| Monaco model + multi-selection + IME    | `@weavo/monaco-adapter`         |
 | WTF-8 for lone surrogates               | `@weavo/transport`              |
 
 ---

@@ -96,6 +96,14 @@ export function CollaborativeTextarea({ roomUrl }: { roomUrl: string }) {
         Ops and the first sync wait until membership join completes. Until then
         the bound textarea stays read-only.
       </p>
+
+      <h2 className={styles.h2}>Monaco</h2>
+      <pre className={styles.pre}>
+        <code>{`import { monacoAdapter } from "@weavo/monaco-adapter";
+
+const weavo = createWeavo(roomUrl, { adapter: monacoAdapter });
+const unbind = weavo.bind(editor);`}</code>
+      </pre>
     </article>
   );
 }
