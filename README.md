@@ -13,9 +13,9 @@
 
 ---
 
-Weavo turns any native `<textarea>` into a collaborative editor.
+Weavo turns a native `<textarea>` or Monaco Editor into a collaborative surface.
 
-No CRDT knowledge. No editor framework. No React dependency. Bind a textarea, connect to a room, and every participant stays in sync.
+No CRDT knowledge. No editor framework. No React dependency. Bind an editor, connect to a room, and every participant stays in sync.
 
 **Demo:** https://soham0w0sarkar.github.io/Weavo/
 
@@ -23,7 +23,7 @@ No CRDT knowledge. No editor framework. No React dependency. Bind a textarea, co
 
 ## Features
 
-- Bind any native `HTMLTextAreaElement`
+- Bind a native `HTMLTextAreaElement` or Monaco Editor
 - Automatic real-time synchronization
 - Conflict-free concurrent editing
 - Cursor/selection preservation during remote edits
@@ -35,27 +35,25 @@ No CRDT knowledge. No editor framework. No React dependency. Bind a textarea, co
 
 ## Installation
 
+Textarea:
+
 ```bash
 npm install @weavo/client @weavo/textarea-adapter
 ```
 
-or
+Monaco:
 
 ```bash
-pnpm add @weavo/client @weavo/textarea-adapter
+npm install @weavo/client @weavo/monaco-adapter monaco-editor
 ```
 
-or
-
-```bash
-bun add @weavo/client @weavo/textarea-adapter
-```
+Same packages work with `pnpm` or `bun`.
 
 ---
 
 ## Quick Start
 
-Weavo needs a **WebSocket relay** and the **browser client**. The server just forwards JSON — clients handle merging.
+Weavo needs a **WebSocket relay** and the **browser client**. The server just forwards frames — clients handle merging.
 
 ### 1. WebSocket server
 
@@ -80,11 +78,7 @@ wss.on("connection", (ws) => {
 console.log("ws://localhost:8080");
 ```
 
-### 2. Browser client
-
-```bash
-npm install @weavo/client @weavo/textarea-adapter
-```
+### 2. Browser client — textarea
 
 ```ts
 import { createWeavo } from "@weavo/client";
@@ -96,6 +90,20 @@ const weavo = createWeavo("ws://localhost:8080", {
 
 const textarea = document.querySelector("textarea")!;
 const dispose = weavo.bind(textarea);
+```
+
+### 3. Browser client — Monaco
+
+```ts
+import { createWeavo } from "@weavo/client";
+import { monacoAdapter } from "@weavo/monaco-adapter";
+import * as monaco from "monaco-editor";
+
+const editor = monaco.editor.create(container, { language: "typescript" });
+const weavo = createWeavo("ws://localhost:8080?room=code", {
+  adapter: monacoAdapter,
+});
+const dispose = weavo.bind(editor);
 ```
 
 That's it — open two tabs and start typing. Use `wss://` in production.
@@ -125,12 +133,13 @@ const weavo = createWeavo(url, {
 
 ---
 
-### `weavo.bind(textarea)`
+### `weavo.bind(target)`
 
-Binds a native textarea to the collaborative document.
+Binds a native textarea or Monaco editor to the collaborative document (via the adapter you passed to `createWeavo`).
 
 ```ts
 const cleanup = weavo.bind(textarea);
+// or: weavo.bind(monacoEditor)
 ```
 
 Returns a cleanup function.
@@ -175,7 +184,7 @@ Restore on the next visit with **base + delta**:
 
 ## How it Works
 
-Weavo observes browser input events, converts them into editing operations, synchronizes those operations over WebSockets, and automatically applies incoming changes while preserving the user's current cursor and selection whenever possible.
+Weavo observes editor input, converts it into editing operations, synchronizes those operations over WebSockets, and automatically applies incoming changes while preserving the user's current cursor and selection whenever possible.
 
 From the application's perspective, it's simply:
 
@@ -210,7 +219,7 @@ useEffect(() => {
 }, []);
 ```
 
-Because Weavo works directly with the DOM, it can be used with virtually any frontend framework.
+Because Weavo works directly with the editor host, it can be used with virtually any frontend framework.
 
 ---
 
@@ -219,8 +228,8 @@ Because Weavo works directly with the DOM, it can be used with virtually any fro
 Modern browsers supporting:
 
 - WebSocket
-- beforeinput events
-- HTMLTextAreaElement
+- beforeinput events (textarea adapter)
+- HTMLTextAreaElement and/or Monaco Editor
 - ES Modules
 
 ---
@@ -229,7 +238,7 @@ Modern browsers supporting:
 
 Weavo intentionally focuses on one thing:
 
-> Make collaborative textareas ridiculously simple.
+> Make collaborative plain-text editing ridiculously simple.
 
 It does **not** attempt to become:
 
@@ -237,7 +246,7 @@ It does **not** attempt to become:
 - an editor framework
 - a UI toolkit
 
-Instead, Weavo provides a reliable synchronization layer that can be integrated anywhere.
+Instead, Weavo provides a reliable synchronization layer plus thin adapters for textarea and Monaco that can be integrated anywhere.
 
 ---
 
@@ -249,6 +258,8 @@ This repository is a monorepo containing:
 | ------------------------- | ---------------------------- |
 | `@weavo/client`           | Browser document + sync      |
 | `@weavo/textarea-adapter` | Native textarea binding      |
+| `@weavo/monaco-adapter`   | Monaco Editor binding        |
+| `@weavo/membership`       | Room membership + presence   |
 | `@weavo/core`             | Collaborative editing engine |
 | `@weavo/sync`             | Synchronization protocol     |
 | `@weavo/transport`        | Transport abstraction        |
@@ -265,16 +276,12 @@ bun install
 bun run dev
 ```
 
+That starts `weavo-server` and the demo together. For docs only: `bun run dev:docs`. For every workspace: `bun run dev:all`.
+
 Build all packages:
 
 ```bash
 bun run build
-```
-
-Run the demo:
-
-```bash
-bun run dev
 ```
 
 ---

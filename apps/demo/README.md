@@ -2,9 +2,12 @@
   <img src="../../docs/assets/logo.png" width="140" alt="weavo" />
 </p>
 
-Collaborative text editing demo using `@weavo/client`.
+Collaborative text editing demo using `@weavo/client` with `@weavo/textarea-adapter` and `@weavo/monaco-adapter`.
 
-Each session uses a room ID stored in the browser — no query params in the URL. Generate a room, copy the ID, and others paste it under **Join**.
+- `/` — native textarea
+- `/monaco` — Monaco Editor (IntelliSense for TS/JS and other built-in languages)
+
+Each session uses a room ID stored in the browser — no query params in the URL. Generate a room, copy the ID, and others paste it under **Join**. Switching editors keeps the same room.
 
 ## Run locally
 
@@ -17,7 +20,7 @@ bun run dev
 
 That starts the Weavo server (port 8080) and the demo app (port 3000) together.
 
-Open [http://localhost:3000](http://localhost:3000). Copy the room ID and open Join in another tab to sync edits.
+Open [http://localhost:3000](http://localhost:3000) or [http://localhost:3000/monaco](http://localhost:3000/monaco). Copy the room ID and open Join in another tab to sync edits.
 
 ### Phone on the same Wi‑Fi
 
