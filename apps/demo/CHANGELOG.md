@@ -1,5 +1,14 @@
 # demo
 
+## 2.0.0
+
+### Major Changes
+
+- Monaco room with IntelliSense, sharing the lobby room with the textarea
+- Remote carets move when that author's insert lands, instead of waiting for the next heartbeat
+- Native textarea binding lives in `@weavo/textarea-adapter`
+- Tombstones are swept from the heartbeat GC frontier
+
 ## 0.1.9
 
 ### Patch Changes
