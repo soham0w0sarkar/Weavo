@@ -305,6 +305,11 @@ button {
   margin-bottom: 0;
 }
 
+/* Textarea has no toolbar, so the bar itself keeps the gap Monaco gets from .monaco-toolbar. */
+.editor-shell > .presence-bar {
+  margin-bottom: 0.5rem;
+}
+
 .presence-chip {
   display: inline-flex;
   align-items: center;
