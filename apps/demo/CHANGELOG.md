@@ -1,5 +1,14 @@
 # demo
 
+## 2.1.0
+
+### Minor Changes
+
+- Textarea page is as wide as the Monaco page, and the textarea itself is taller
+- Presence chips above the textarea have the same gap the Monaco toolbar already had
+- The Textarea / Monaco switch stays in the lobby. It is gone once you are in a room
+- Monaco no longer broadcasts diagnostics. Each editor shows its own language-service errors
+
 ## 2.0.0
 
 ### Major Changes
