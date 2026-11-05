@@ -156,7 +156,10 @@ button {
   left: -2px;
   padding: 0.05rem 0.3rem;
   border-radius: 0.25rem 0.25rem 0.25rem 0;
-  font: 600 0.6875rem/1.4 var(--font-geist-sans), system-ui, sans-serif;
+  font:
+    600 0.6875rem/1.4 var(--font-geist-sans),
+    system-ui,
+    sans-serif;
   white-space: nowrap;
 }
 
@@ -279,7 +282,8 @@ button {
   letter-spacing: -0.01em;
   cursor: pointer;
   appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
     linear-gradient(135deg, var(--muted) 50%, transparent 50%);
   background-position:
     calc(100% - 12px) calc(50% - 2px),
