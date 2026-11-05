@@ -1,5 +1,11 @@
 # @weavo/transport
 
+## 2.0.3
+
+### Patch Changes
+
+- Ignore non-binary WebSocket frames instead of trying to decode them as protocol messages.
+
 ## 2.0.2
 
 ### Patch Changes

@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "@weavo/core": "^2.0.1",
-    "@weavo/membership": "^1.0.1",
+    "@weavo/membership": "^1.1.0",
     "@weavo/sync": "^2.0.1",
     "@weavo/transport": "^2.0.2"
   },

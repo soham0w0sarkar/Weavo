@@ -1,5 +1,11 @@
 # @weavo/membership
 
+## 1.1.0
+
+### Minor Changes
+
+- Add `setCursor(clientId, cursor)` on the membership handle. A local cursor nudge is broadcast between heartbeats, so remote carets move when their author's insert lands instead of waiting for the next heartbeat.
+
 ## 1.0.0
 
 ### Major Changes

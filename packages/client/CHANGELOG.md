@@ -1,5 +1,17 @@
 # @weavo/client
 
+## 3.0.0
+
+### Major Changes
+
+- The textarea bind moved to `@weavo/textarea-adapter`. The client now exports the adapter host (`WeavoAdapter`, `WeavoAdapterHost`, `RemoteChange`, `LocalInput`, `InputSnapshot`) and helpers (`applyTextChange`, `textChangeFromDiff`, `toTextChange`, `transformPosition`, `transformSnapshot`) so other editors can bind without forking the client.
+- Remote carets advance when their author's insert lands, instead of waiting for the next heartbeat.
+
+### Patch Changes
+
+- Updated dependencies
+  - @weavo/membership@1.1.0
+
 ## 2.0.2
 
 ### Patch Changes
