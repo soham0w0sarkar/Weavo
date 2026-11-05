@@ -236,7 +236,6 @@ export function DemoRoom({
   return (
     <div className={styles.session} style={tint}>
       <div className={styles.toolbar}>
-        <EditorSwitch editor={editor} />
         <div className={styles.toolbarDesktop}>
           <code className={styles.roomId} title={roomId}>
             {roomId}
