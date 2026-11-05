@@ -6,7 +6,6 @@ import type { editor } from "monaco-editor";
 import { monacoAdapter } from "@weavo/monaco-adapter";
 import { MonacoRemoteCursors } from "./MonacoRemoteCursors";
 import { useWeavoEditor } from "./useWeavoEditor";
-import { useSharedDiagnostics } from "./useSharedDiagnostics";
 import {
   configureLanguageServices,
   DEFAULT_DEMO_LANGUAGE,
@@ -82,17 +81,6 @@ export function WeavoMonaco({
     skipRestoreOnce,
     displayName,
     displayColor,
-  });
-
-  useSharedDiagnostics({
-    monaco,
-    editorInstance,
-    weavoUrl,
-    joined,
-    selfId,
-    displayName,
-    displayColor,
-    language,
   });
 
   return (
