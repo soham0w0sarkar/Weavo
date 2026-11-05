@@ -67,7 +67,7 @@ button {
   position: relative;
   z-index: 1;
   width: 100%;
-  min-height: 18rem;
+  min-height: 32rem;
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   resize: vertical;
