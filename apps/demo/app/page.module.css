@@ -14,7 +14,7 @@
 
 .main {
   width: 100%;
-  max-width: 520px;
+  max-width: 56rem;
   display: flex;
   flex-direction: column;
 }
