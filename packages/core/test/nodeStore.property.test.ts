@@ -295,7 +295,6 @@ describe("NodeStore — convergence", () => {
         ),
         fc.integer(),
         (pairs, seed) => {
-
           const ops: InsertOperation[] = pairs.map(([_, ch], idx) =>
             createInsertOperation([CLIENT, idx], ch, ROOT_ID, null),
           );
@@ -350,7 +349,8 @@ describe("NodeStore — convergence", () => {
 });
 
 describe("NodeStore — load", () => {
-  test("100k chained inserts complete under 10s", () => {
+  // Bun's default limit is 5s, which is below the bounds these tests check.
+  test("100k chained inserts complete under 10s", { timeout: 15_000 }, () => {
     const store = makeStore();
     const CLIENT2 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc" as ClientId;
     const n = 100_000;
@@ -369,49 +369,62 @@ describe("NodeStore — load", () => {
     assert.ok(ms < 10_000, `too slow: ${ms}ms`);
   });
 
-  test("40k inserts + 20k tombstones complete under 10s", () => {
-    const store = makeStore();
-    const CLIENT3 = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" as ClientId;
-    const n = 40_000;
-    const t0 = performance.now();
-    for (let i = 0; i < n; i++) {
-      const left: OperationId =
-        i === 0 ? ROOT_ID : generateOperationId(CLIENT3, i - 1);
-      insertIntoStore(
-        store,
-        createInsertOperation(generateOperationId(CLIENT3, i), "m", left, null),
-      );
-    }
-    for (let i = 0; i < n; i += 2) {
-      removeFromStore(
-        store,
-        createDeleteOperation(generateOperationId(CLIENT3, i)),
-      );
-    }
-    const ms = performance.now() - t0;
-    assert.strictEqual(getText(store).length, n / 2);
-    console.log(`40k inserts + 20k deletes: ${ms.toFixed(0)}ms`);
-    assert.ok(ms < 10_000, `too slow: ${ms}ms`);
-  });
+  test(
+    "40k inserts + 20k tombstones complete under 10s",
+    { timeout: 15_000 },
+    () => {
+      const store = makeStore();
+      const CLIENT3 = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" as ClientId;
+      const n = 40_000;
+      const t0 = performance.now();
+      for (let i = 0; i < n; i++) {
+        const left: OperationId =
+          i === 0 ? ROOT_ID : generateOperationId(CLIENT3, i - 1);
+        insertIntoStore(
+          store,
+          createInsertOperation(
+            generateOperationId(CLIENT3, i),
+            "m",
+            left,
+            null,
+          ),
+        );
+      }
+      for (let i = 0; i < n; i += 2) {
+        removeFromStore(
+          store,
+          createDeleteOperation(generateOperationId(CLIENT3, i)),
+        );
+      }
+      const ms = performance.now() - t0;
+      assert.strictEqual(getText(store).length, n / 2);
+      console.log(`40k inserts + 20k deletes: ${ms.toFixed(0)}ms`);
+      assert.ok(ms < 10_000, `too slow: ${ms}ms`);
+    },
+  );
 
-  test("10k ROOT-sibling inserts — documents O(n²) scan cost", () => {
-    const store = makeStore();
-    const CLIENT4 = "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as ClientId;
-    const n = 10_000;
-    const t0 = performance.now();
-    for (let i = 0; i < n; i++) {
-      insertIntoStore(
-        store,
-        createInsertOperation(
-          generateOperationId(CLIENT4, i),
-          "q",
-          ROOT_ID,
-          null,
-        ),
-      );
-    }
-    const ms = performance.now() - t0;
-    assert.strictEqual(getText(store).length, n);
-    console.log(`10k ROOT-sibling inserts (O(n²)): ${ms.toFixed(0)}ms`);
-  });
+  test(
+    "10k ROOT-sibling inserts — documents O(n²) scan cost",
+    { timeout: 30_000 },
+    () => {
+      const store = makeStore();
+      const CLIENT4 = "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as ClientId;
+      const n = 10_000;
+      const t0 = performance.now();
+      for (let i = 0; i < n; i++) {
+        insertIntoStore(
+          store,
+          createInsertOperation(
+            generateOperationId(CLIENT4, i),
+            "q",
+            ROOT_ID,
+            null,
+          ),
+        );
+      }
+      const ms = performance.now() - t0;
+      assert.strictEqual(getText(store).length, n);
+      console.log(`10k ROOT-sibling inserts (O(n²)): ${ms.toFixed(0)}ms`);
+    },
+  );
 });
