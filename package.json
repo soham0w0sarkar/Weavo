@@ -19,6 +19,7 @@
     "dev:all": "turbo run dev",
     "dev:docs": "turbo run dev --filter=docs",
     "lint": "turbo run lint",
+    "test": "turbo run test --filter=@weavo/*",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "check-types": "turbo run check-types",
