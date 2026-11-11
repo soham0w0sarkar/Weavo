@@ -17,7 +17,6 @@
     "@weavo/monaco-adapter": "workspace:*",
     "@weavo/textarea-adapter": "workspace:*",
     "@weavo/transport": "workspace:*",
-    "@repo/ui": "*",
     "next": "16.1.5",
     "monaco-editor": "^0.56.0",
     "react": "^19.2.0",
