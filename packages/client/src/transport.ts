@@ -72,7 +72,10 @@ const handleIncomingOp = (
     onApplied(op, index);
     const appliedOps = flush(buffer, doc, op);
 
-    appliedOps.forEach(({ op, index }) => onApplied(op, index));
+    appliedOps.forEach(({ op, index }) => {
+      onApplied(op, index);
+      if (op.type === "insert") update(sv, op.id);
+    });
 
     if (op.type === "insert") {
       update(sv, op.id);
