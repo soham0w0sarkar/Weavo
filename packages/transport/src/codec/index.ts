@@ -10,6 +10,12 @@ export {
   encodeDocumentSnapshot,
   PERSIST_VERSION,
 } from "./persistence";
+export {
+  decodeRoomDocument,
+  encodeRoomDocument,
+  ROOM_DOCUMENT_VERSION,
+  type RoomDocument,
+} from "./roomDocument";
 export { uuidOnlyCodec, type IdCodec } from "./idCodec";
 export {
   MEM_ACCEPT,

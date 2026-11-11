@@ -27,7 +27,7 @@ import {
 } from "@weavo/transport";
 import type { OnApplied, PeersReq, TimerRef } from "./types";
 
-const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
+export const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
   const operations: Operation[] = [];
 
   for (const op of ops) {

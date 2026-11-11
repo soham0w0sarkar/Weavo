@@ -37,6 +37,10 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 
 # Cursor
 .cursor/

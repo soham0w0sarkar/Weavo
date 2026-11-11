@@ -1,4 +1,5 @@
 import type { ServerWebSocket } from "bun";
+import { DOCUMENT_MEDIA_TYPE, openDocumentArchive } from "./archive";
 
 type RoomData = { room: string };
 
@@ -6,6 +7,7 @@ const PORT = Number(process.env.PORT ?? 8080);
 const GITHUB_PAGES_ORIGIN = "https://soham0w0sarkar.github.io";
 const startedAt = Date.now();
 const rooms = new Map<string, Set<ServerWebSocket<RoomData>>>();
+const documents = openDocumentArchive();
 
 const allowedOrigins = new Set(
   (process.env.WEAVO_ALLOWED_ORIGINS ?? GITHUB_PAGES_ORIGIN)
@@ -29,6 +31,11 @@ const isPrivateHost = (hostname: string) => {
   return /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
 };
 
+const asBytes = (message: string | Buffer): Uint8Array | null => {
+  if (typeof message === "string") return new TextEncoder().encode(message);
+  return new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
+};
+
 const originAllowed = (origin: string | null) => {
   if (!origin) return false;
   if (allowedOrigins.has(origin)) return true;
@@ -50,7 +57,11 @@ const corsHeaders = (origin: string | null): Record<string, string> => {
   };
 };
 
-const httpResponse = (body: string, status = 200, origin: string | null = null) =>
+const httpResponse = (
+  body: string,
+  status = 200,
+  origin: string | null = null,
+) =>
   new Response(body, {
     status,
     headers: {
@@ -59,7 +70,11 @@ const httpResponse = (body: string, status = 200, origin: string | null = null) 
     },
   });
 
-const jsonResponse = (body: unknown, status = 200, origin: string | null = null) =>
+const jsonResponse = (
+  body: unknown,
+  status = 200,
+  origin: string | null = null,
+) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -85,7 +100,8 @@ Bun.serve<RoomData>({
     const origin = req.headers.get("origin");
 
     if (req.method === "OPTIONS") {
-      if (!originAllowed(origin)) return httpResponse("Forbidden\n", 403, origin);
+      if (!originAllowed(origin))
+        return httpResponse("Forbidden\n", 403, origin);
       return new Response(null, {
         status: 204,
         headers: {
@@ -98,6 +114,18 @@ Bun.serve<RoomData>({
 
     if (url.pathname === "/health") {
       return httpResponse("ok\n", 200, origin);
+    }
+
+    if (url.pathname === "/document") {
+      const room = url.searchParams.get("room") ?? "default";
+      const body = documents?.bytes(room) ?? null;
+      const headers = {
+        "content-type": DOCUMENT_MEDIA_TYPE,
+        "cache-control": "no-store",
+        ...corsHeaders(origin),
+      };
+      if (!body) return new Response(null, { status: 204, headers });
+      return new Response(body, { status: 200, headers });
     }
 
     if (url.pathname === "/ready") {
@@ -114,7 +142,8 @@ Bun.serve<RoomData>({
       );
     }
 
-    const upgrade = (req.headers.get("upgrade") ?? "").toLowerCase() === "websocket";
+    const upgrade =
+      (req.headers.get("upgrade") ?? "").toLowerCase() === "websocket";
     if (upgrade && !originAllowed(origin)) {
       console.warn(`rejected websocket origin: ${origin ?? "(missing)"}`);
       return httpResponse("Forbidden\n", 403, origin);
@@ -140,6 +169,21 @@ Bun.serve<RoomData>({
     },
     message(ws, message) {
       const peers = getRoom(ws.data.room);
+      const bytes = asBytes(message);
+
+      if (documents && bytes) {
+        try {
+          documents.observe(ws.data.room, bytes, (outgoing) => {
+            for (const peer of peers) {
+              if (peer.readyState === WebSocket.OPEN) peer.send(outgoing);
+            }
+          });
+        } catch (error) {
+          console.warn(
+            `document store skipped a frame: ${error instanceof Error ? error.message : "failed"}`,
+          );
+        }
+      }
 
       for (const peer of peers) {
         if (peer !== ws && peer.readyState === WebSocket.OPEN) {
@@ -160,6 +204,11 @@ Bun.serve<RoomData>({
 });
 
 console.log(`Weavo WebSocket server listening on ws://0.0.0.0:${PORT}`);
+console.log(
+  documents
+    ? `Room documents: ${documents.path}`
+    : "Room documents: off (set WEAVO_DB to a sqlite path)",
+);
 console.log(`Allowed origins: ${[...allowedOrigins].join(", ")}`);
 console.log(`Local:   ws://localhost:${PORT}`);
 console.log(`Network: open the demo Network URL on your phone (same Wi‑Fi)`);

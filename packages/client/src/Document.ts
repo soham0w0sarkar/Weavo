@@ -23,6 +23,7 @@ import {
   createWebSocketTransport,
   type RawTransport,
 } from "@weavo/transport";
+import { fetchRoomDocument, mergeRoomDocument } from "./roomDocument";
 import { createSubscription } from "./Subscription";
 import { toTextChange } from "./textChange";
 import { manageTransport } from "./transport";
@@ -51,6 +52,16 @@ export type WeavoOptions<TTarget = never> = {
     snapshot: DocumentSnapshot;
     delta?: Operation[];
   };
+  /**
+   * Room database loaded before the first peer sync.
+   * A WebSocket URL fetches `GET /document` on that host unless this is `null`.
+   */
+  loadDocument?:
+    | (() => Promise<{
+        snapshot: DocumentSnapshot;
+        delta?: Operation[];
+      } | null>)
+    | null;
 };
 
 const colorFromId = (clientId: ClientId): string => {
@@ -197,7 +208,37 @@ export const createWeavo = <TTarget = never>(
   };
 
   manageTransport(transport, doc, sv, buffer, onApplied, membership);
-  transport.connect();
+
+  const loadDocument =
+    options.loadDocument === null
+      ? null
+      : (options.loadDocument ??
+        (typeof urlOrTransport === "string"
+          ? () => fetchRoomDocument(urlOrTransport)
+          : null));
+
+  let closed = false;
+  let started = false;
+  const startTransport = () => {
+    if (closed || started) return;
+    started = true;
+    transport.connect();
+  };
+
+  if (!loadDocument) {
+    startTransport();
+  } else {
+    void Promise.resolve()
+      .then(() => loadDocument())
+      .then((remote) => {
+        if (closed || !remote) return;
+        mergeRoomDocument(doc, sv, buffer, remote, onApplied);
+      })
+      .catch(() => {})
+      .finally(() => {
+        startTransport();
+      });
+  }
 
   const host: WeavoAdapterHost = {
     getText: () => getText(doc.store),
@@ -233,7 +274,8 @@ export const createWeavo = <TTarget = never>(
     },
     snapshot: (): DocumentSnapshot => takeSnapshot(doc, sv),
     disconnect: () => {
-      membership.leave();
+      closed = true;
+      if (started) membership.leave();
       transport.disconnect();
     },
     membership,

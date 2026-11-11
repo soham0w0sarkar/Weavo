@@ -15,12 +15,30 @@ import {
   bytesToBase64,
   decodeDelta,
   decodeDocumentSnapshot,
+  decodeRoomDocument,
   encodeDelta,
   encodeDocumentSnapshot,
+  encodeRoomDocument,
 } from "../src/codec";
 
 const ALICE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as ClientId;
 const BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" as ClientId;
+
+describe("room document codec", () => {
+  test("round-trips a snapshot and its delta", () => {
+    const doc = createReplica(ALICE);
+    const left = generateOperationId(BOB, 0);
+    apply(doc, createInsertOperation(left, "h", ROOT_ID, null));
+    const snapshot = takeSnapshot(doc, new Map([[BOB, 0]]));
+    const delta = [
+      createInsertOperation(generateOperationId(BOB, 1), "i", left, null),
+    ];
+    const decoded = decodeRoomDocument(encodeRoomDocument({ snapshot, delta }));
+
+    expect(decoded.snapshot).toEqual(snapshot);
+    expect(decoded.delta).toEqual(delta);
+  });
+});
 
 describe("persistence codec", () => {
   test("round-trips a document snapshot denser than JSON", () => {
