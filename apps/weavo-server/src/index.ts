@@ -1,5 +1,4 @@
 import type { ServerWebSocket } from "bun";
-import { DOCUMENT_MEDIA_TYPE, openDocumentArchive } from "./archive";
 
 type RoomData = { room: string };
 
@@ -7,7 +6,6 @@ const PORT = Number(process.env.PORT ?? 8080);
 const GITHUB_PAGES_ORIGIN = "https://soham0w0sarkar.github.io";
 const startedAt = Date.now();
 const rooms = new Map<string, Set<ServerWebSocket<RoomData>>>();
-const documents = openDocumentArchive();
 
 const allowedOrigins = new Set(
   (process.env.WEAVO_ALLOWED_ORIGINS ?? GITHUB_PAGES_ORIGIN)
@@ -29,11 +27,6 @@ const isPrivateHost = (hostname: string) => {
   if (hostname.startsWith("192.168.")) return true;
   if (hostname.startsWith("10.")) return true;
   return /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
-};
-
-const asBytes = (message: string | Buffer): Uint8Array | null => {
-  if (typeof message === "string") return new TextEncoder().encode(message);
-  return new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
 };
 
 const originAllowed = (origin: string | null) => {
@@ -116,18 +109,6 @@ Bun.serve<RoomData>({
       return httpResponse("ok\n", 200, origin);
     }
 
-    if (url.pathname === "/document") {
-      const room = url.searchParams.get("room") ?? "default";
-      const body = documents?.bytes(room) ?? null;
-      const headers = {
-        "content-type": DOCUMENT_MEDIA_TYPE,
-        "cache-control": "no-store",
-        ...corsHeaders(origin),
-      };
-      if (!body) return new Response(null, { status: 204, headers });
-      return new Response(body, { status: 200, headers });
-    }
-
     if (url.pathname === "/ready") {
       return jsonResponse(
         {
@@ -169,21 +150,6 @@ Bun.serve<RoomData>({
     },
     message(ws, message) {
       const peers = getRoom(ws.data.room);
-      const bytes = asBytes(message);
-
-      if (documents && bytes) {
-        try {
-          documents.observe(ws.data.room, bytes, (outgoing) => {
-            for (const peer of peers) {
-              if (peer.readyState === WebSocket.OPEN) peer.send(outgoing);
-            }
-          });
-        } catch (error) {
-          console.warn(
-            `document store skipped a frame: ${error instanceof Error ? error.message : "failed"}`,
-          );
-        }
-      }
 
       for (const peer of peers) {
         if (peer !== ws && peer.readyState === WebSocket.OPEN) {
@@ -204,11 +170,6 @@ Bun.serve<RoomData>({
 });
 
 console.log(`Weavo WebSocket server listening on ws://0.0.0.0:${PORT}`);
-console.log(
-  documents
-    ? `Room documents: ${documents.path}`
-    : "Room documents: off (set WEAVO_DB to a sqlite path)",
-);
 console.log(`Allowed origins: ${[...allowedOrigins].join(", ")}`);
 console.log(`Local:   ws://localhost:${PORT}`);
 console.log(`Network: open the demo Network URL on your phone (same Wi‑Fi)`);

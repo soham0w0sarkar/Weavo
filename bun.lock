@@ -57,12 +57,6 @@
     "apps/weavo-server": {
       "name": "weavo-server",
       "version": "0.1.0",
-      "dependencies": {
-        "@weavo/core": "workspace:*",
-        "@weavo/membership": "workspace:*",
-        "@weavo/sync": "workspace:*",
-        "@weavo/transport": "workspace:*",
-      },
     },
     "packages/client": {
       "name": "@weavo/client",

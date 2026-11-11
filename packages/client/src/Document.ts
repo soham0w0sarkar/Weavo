@@ -23,7 +23,7 @@ import {
   createWebSocketTransport,
   type RawTransport,
 } from "@weavo/transport";
-import { fetchRoomDocument, mergeRoomDocument } from "./roomDocument";
+import { mergeRoomDocument } from "./roomDocument";
 import { createSubscription } from "./Subscription";
 import { toTextChange } from "./textChange";
 import { manageTransport } from "./transport";
@@ -53,8 +53,8 @@ export type WeavoOptions<TTarget = never> = {
     delta?: Operation[];
   };
   /**
-   * Room database loaded before the first peer sync.
-   * A WebSocket URL fetches `GET /document` on that host unless this is `null`.
+   * Persistence hook. Return a stored document to merge before the transport
+   * connects, or null when persistence is off or the room is empty.
    */
   loadDocument?:
     | (() => Promise<{
@@ -209,13 +209,7 @@ export const createWeavo = <TTarget = never>(
 
   manageTransport(transport, doc, sv, buffer, onApplied, membership);
 
-  const loadDocument =
-    options.loadDocument === null
-      ? null
-      : (options.loadDocument ??
-        (typeof urlOrTransport === "string"
-          ? () => fetchRoomDocument(urlOrTransport)
-          : null));
+  const loadDocument = options.loadDocument ?? null;
 
   let closed = false;
   let started = false;

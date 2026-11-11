@@ -16,11 +16,8 @@ import {
   type OperationBuffer,
   type StateVector,
 } from "@weavo/sync";
-import { decodeRoomDocument, type RoomDocument } from "@weavo/transport";
 import type { OnApplied } from "./types";
 import { nodesToOp } from "./transport";
-
-const DOCUMENT_TYPE = "application/vnd.weavo.document";
 
 const isOpPresent = (store: Document["store"], op: Operation): boolean => {
   const node = store.nodes.get(toKey(op.type === "insert" ? op.id : op.target));
@@ -74,31 +71,4 @@ export const mergeRoomDocument = (
     missingOps(restored.stateVector, sv),
   );
   for (const op of ops) applyStoredOp(buffer, doc, op, sv, onApplied);
-};
-
-export const roomDocumentUrl = (webSocketUrl: string): string => {
-  const url = new URL(webSocketUrl);
-  if (url.protocol === "ws:") url.protocol = "http:";
-  if (url.protocol === "wss:") url.protocol = "https:";
-  url.pathname = "/document";
-  url.hash = "";
-  return url.toString();
-};
-
-export const fetchRoomDocument = async (
-  webSocketUrl: string,
-): Promise<RoomDocument | null> => {
-  try {
-    const response = await fetch(roomDocumentUrl(webSocketUrl), {
-      cache: "no-store",
-      signal: AbortSignal.timeout(3_000),
-    });
-    const type = response.headers.get("content-type") ?? "";
-    if (!response.ok || !type.includes(DOCUMENT_TYPE)) return null;
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength === 0) return null;
-    return decodeRoomDocument(bytes);
-  } catch {
-    return null;
-  }
 };
