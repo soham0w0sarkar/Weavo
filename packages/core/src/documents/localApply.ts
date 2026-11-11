@@ -31,14 +31,18 @@ const buildOpFromLocalInput = (
   return applied;
 };
 
-export const onBeforeInput = (e: InputEvent, before: Before) => {
+export const onBeforeInput = (e: InputEvent, before?: Before): Before => {
   const target = e.target as HTMLTextAreaElement;
 
-  before = {
-    start: target.selectionStart,
-    end: target.selectionEnd,
+  const snapshot = {
+    start: target.selectionStart ?? 0,
+    end: target.selectionEnd ?? 0,
     value: target.value,
   };
+
+  if (before) Object.assign(before, snapshot);
+
+  return snapshot;
 };
 
 export const onInput = (
