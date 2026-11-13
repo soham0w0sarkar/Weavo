@@ -1,7 +1,7 @@
 import { generateClientId, type ClientId } from "@weavo/core";
 import { createWeavo, type Weavo } from "../../src/Document";
 import { textareaAdapter } from "../../../textarea-adapter/src";
-import { MemoryRoom } from "./memoryTransport";
+import { MemoryRoom, type MemoryTransport } from "./memoryTransport";
 
 export const flushMicrotasks = async () => {
   await Promise.resolve();
@@ -221,6 +221,7 @@ export type Peer = {
   weavo: Weavo<HTMLTextAreaElement>;
   el: HTMLTextAreaElement;
   unbind: () => void;
+  raw: MemoryTransport;
 };
 
 export const waitUntilJoined = <TTarget>(
@@ -245,19 +246,24 @@ export const waitUntilJoined = <TTarget>(
 
 export const createPeer = async (
   room: MemoryRoom,
-  options: { clientId?: ClientId; members?: ClientId[] } = {},
+  options: {
+    clientId?: ClientId;
+    members?: ClientId[];
+    heartbeatIntervalMs?: number;
+  } = {},
 ): Promise<Peer> => {
   const clientId = options.clientId ?? generateClientId();
-  const weavo = createWeavo(room.join(), {
+  const raw = room.join();
+  const weavo = createWeavo(raw, {
     adapter: textareaAdapter,
     clientId,
     initialMembers: options.members ?? [clientId],
-    heartbeatIntervalMs: 0,
+    heartbeatIntervalMs: options.heartbeatIntervalMs ?? 0,
   });
   const el = createTextarea();
   const unbind = weavo.bind(el);
   await waitUntilJoined(weavo);
-  return { weavo, el, unbind };
+  return { weavo, el, unbind, raw };
 };
 
 export const createPeerPair = async () => {

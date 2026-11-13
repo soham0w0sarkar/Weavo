@@ -25,7 +25,7 @@ import {
   type Message,
   type Transport,
 } from "@weavo/transport";
-import type { OnApplied, PeersReq, TimerRef } from "./types";
+import type { OnApplied, TimerRef } from "./types";
 
 export const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
   const operations: Operation[] = [];
@@ -56,106 +56,104 @@ const isOpPresent = (store: NodeStore, op: Operation): boolean => {
   return true;
 };
 
-const handleIncomingOp = (
-  buffer: OperationBuffer,
+const opKey = (op: Operation) =>
+  op.type === "insert" ? `i:${toKey(op.id)}` : `d:${toKey(op.target)}`;
+
+/** True when `theirs` holds an insert clock that `mine` has not reached. */
+const isAhead = (theirs: StateVector, mine: StateVector) => {
+  for (const [clientId, clock] of theirs) {
+    if (clock > (mine.get(clientId) ?? -1)) return true;
+  }
+  return false;
+};
+
+const SYNC_REQUEST_DEBOUNCE_MS = 50;
+
+type PendingRequest = {
+  vector: StateVector;
+  covered: Set<string>;
+};
+
+/**
+ * Answers sync-requests with suppression: one timer per peer, delay shrinks
+ * with how much the peer has to offer, and a response from someone else
+ * cancels only what it already covered.
+ */
+const createResponder = (
   doc: Document,
-  op: Operation,
   sv: StateVector,
-  onApplied: OnApplied,
   transport: Transport,
-  syncReqTimerRef: TimerRef,
 ) => {
-  if (isOpPresent(doc.store, op)) return;
+  const pending = new Map<ClientId, PendingRequest>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
-  if (canApply(doc, op)) {
-    const index = apply(doc, op);
-    onApplied(op, index);
-    const appliedOps = flush(buffer, doc, op);
+  const opsFor = (vector: StateVector) =>
+    nodesToOp(doc.store, missingOps(sv, vector));
 
-    appliedOps.forEach(({ op, index }) => {
-      onApplied(op, index);
-      if (op.type === "insert") update(sv, op.id);
+  const remainingFor = (request: PendingRequest) =>
+    opsFor(request.vector).filter((op) => !request.covered.has(opKey(op)));
+
+  const clearTimer = () => {
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    timer = undefined;
+  };
+
+  const send = () => {
+    timer = undefined;
+    const ops = new Map<string, Operation>();
+    const clientIds: ClientId[] = [];
+
+    for (const [clientId, request] of pending) {
+      const remaining = remainingFor(request);
+      if (remaining.length === 0) continue;
+      clientIds.push(clientId);
+      for (const op of remaining) ops.set(opKey(op), op);
+    }
+    pending.clear();
+
+    if (clientIds.length === 0) return;
+    transport.send({
+      type: "sync-response",
+      ops: [...ops.values()],
+      clientIds,
     });
+  };
 
-    if (op.type === "insert") {
-      update(sv, op.id);
-    }
-  } else {
-    addToBuffer(buffer, doc, op);
-    scheduleSyncRequest(transport, sv, doc.clientId, syncReqTimerRef);
-  }
-};
+  return {
+    onRequest(requester: ClientId, vector: StateVector) {
+      const count = opsFor(vector).length;
+      if (count === 0) {
+        pending.delete(requester);
+        if (pending.size === 0) clearTimer();
+        return;
+      }
 
-const scheduleSyncRequest = (
-  transport: Transport,
-  sv: StateVector,
-  clientId: ClientId,
-  syncReqTimerRef: TimerRef,
-) => {
-  if (syncReqTimerRef.current) clearTimeout(syncReqTimerRef.current);
+      pending.set(requester, { vector, covered: new Set() });
+      if (timer !== undefined) return;
+      const uniform = Math.max(Math.random(), Number.EPSILON);
+      timer = setTimeout(send, -Math.log(uniform) / count);
+    },
 
-  syncReqTimerRef.current = setTimeout(() => {
-    syncReqTimerRef.current = undefined;
-    transport.send({ type: "sync-request", vector: sv, clientId });
-  }, 50);
-};
+    onResponse(clientIds: ClientId[], ops: Operation[]) {
+      if (pending.size === 0) return;
+      const keys = ops.map(opKey);
 
-const handleSyncReq = (
-  mineSv: StateVector,
-  theirSv: StateVector,
-  transport: Transport,
-  timerRef: TimerRef,
-  requestQueue: PeersReq,
-  doc: Document,
-) => {
-  if (timerRef.current) return;
+      for (const clientId of clientIds) {
+        const request = pending.get(clientId);
+        if (!request) continue;
+        for (const key of keys) request.covered.add(key);
+        if (remainingFor(request).length === 0) pending.delete(clientId);
+      }
 
-  const misingOps = missingOps(mineSv, theirSv);
+      if (pending.size === 0) clearTimer();
+    },
 
-  const backOffDelay =
-    misingOps.length === 0
-      ? 2147483647
-      : -Math.log(Math.random()) / misingOps.length;
-
-  const ops = nodesToOp(doc.store, misingOps);
-
-  timerRef.current = setTimeout(() => {
-    transport.send({ type: "sync-response", ops, clientIds: requestQueue });
-    requestQueue.length = 0;
-    timerRef.current = undefined;
-  }, backOffDelay);
-};
-
-const handleSyncRes = (
-  buffer: OperationBuffer,
-  doc: Document,
-  clientIds: PeersReq,
-  opClientId: ClientId,
-  ops: Operation[],
-  sv: StateVector,
-  timerRef: TimerRef,
-  onApplied: OnApplied,
-  transport: Transport,
-  syncReqTimerRef: TimerRef,
-) => {
-  const isMinePresent = clientIds.includes(opClientId);
-
-  if (isMinePresent) {
-    for (const op of ops) {
-      handleIncomingOp(
-        buffer,
-        doc,
-        op,
-        sv,
-        onApplied,
-        transport,
-        syncReqTimerRef,
-      );
-    }
-    return;
-  }
-
-  clearTimeout(timerRef.current);
+    reset() {
+      pending.clear();
+      clearTimer();
+    },
+  };
 };
 
 export const manageTransport = (
@@ -166,17 +164,19 @@ export const manageTransport = (
   onApplied: OnApplied,
   membership: MembershipHandle,
 ) => {
-  const timerRef: TimerRef = { current: undefined };
-  const syncReqTimerRef: TimerRef = { current: undefined };
-  const requestQueue: PeersReq = [];
+  const responder = createResponder(doc, sv, transport);
+  const requestTimer: TimerRef = { current: undefined };
+  let open = false;
 
-  let opened = false;
-  let joined = false;
-  let syncRequested = false;
+  const clearRequestTimer = () => {
+    if (requestTimer.current === undefined) return;
+    clearTimeout(requestTimer.current);
+    requestTimer.current = undefined;
+  };
 
-  const requestInitialSync = () => {
-    if (!opened || !joined || syncRequested) return;
-    syncRequested = true;
+  const requestSync = () => {
+    clearRequestTimer();
+    if (!open || !membership.isJoined()) return;
     transport.send({
       type: "sync-request",
       vector: sv,
@@ -184,15 +184,44 @@ export const manageTransport = (
     });
   };
 
+  const scheduleSyncRequest = () => {
+    clearRequestTimer();
+    requestTimer.current = setTimeout(requestSync, SYNC_REQUEST_DEBOUNCE_MS);
+  };
+
+  const applyIncoming = (op: Operation) => {
+    if (isOpPresent(doc.store, op)) return;
+
+    if (!canApply(doc, op)) {
+      addToBuffer(buffer, doc, op);
+      scheduleSyncRequest();
+      return;
+    }
+
+    const index = apply(doc, op);
+    if (op.type === "insert") update(sv, op.id);
+    onApplied(op, index);
+
+    for (const applied of flush(buffer, doc, op)) {
+      if (applied.op.type === "insert") update(sv, applied.op.id);
+      onApplied(applied.op, applied.index);
+    }
+  };
+
   transport.onOpen(() => {
-    opened = true;
+    open = true;
     if (!membership.isJoined()) membership.requestJoin(doc.clientId);
-    requestInitialSync();
+    requestSync();
+  });
+
+  transport.onClose(() => {
+    open = false;
+    clearRequestTimer();
+    responder.reset();
   });
 
   membership.onJoined(() => {
-    joined = true;
-    requestInitialSync();
+    requestSync();
   });
 
   transport.onMessage((message: Message) => {
@@ -210,40 +239,25 @@ export const manageTransport = (
 
     switch (message.type) {
       case "op":
-        handleIncomingOp(
-          buffer,
-          doc,
-          message.op,
-          sv,
-          onApplied,
-          transport,
-          syncReqTimerRef,
-        );
+        applyIncoming(message.op);
         break;
       case "sync-request":
-        requestQueue.push(message.clientId);
-        handleSyncReq(
-          sv,
-          message.vector,
-          transport,
-          timerRef,
-          requestQueue,
-          doc,
-        );
+        if (message.clientId === doc.clientId) break;
+        responder.onRequest(message.clientId, message.vector);
+        if (isAhead(message.vector, sv)) scheduleSyncRequest();
         break;
       case "sync-response":
-        handleSyncRes(
-          buffer,
-          doc,
-          message.clientIds,
-          doc.clientId,
-          message.ops,
-          sv,
-          timerRef,
-          onApplied,
-          transport,
-          syncReqTimerRef,
-        );
+        responder.onResponse(message.clientIds, message.ops);
+        if (message.clientIds.includes(doc.clientId)) {
+          for (const op of message.ops) applyIncoming(op);
+        }
+        break;
     }
   });
+
+  return {
+    /** Ask peers for anything missed. No-op until the socket is open and joined. */
+    requestSync,
+    isOpen: () => open,
+  };
 };

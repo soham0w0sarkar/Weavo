@@ -27,6 +27,7 @@ import { mergeRoomDocument } from "./roomDocument";
 import { createSubscription } from "./Subscription";
 import { toTextChange } from "./textChange";
 import { manageTransport } from "./transport";
+import { subscribeWake } from "./wake";
 import type {
   InputSnapshot,
   LocalInput,
@@ -97,6 +98,7 @@ export const createWeavo = <TTarget = never>(
   let getLocalCursor: (() => number) | null = null;
 
   let membership!: MembershipHandle;
+  let link: ReturnType<typeof manageTransport> | null = null;
   const transport = createTransport(rawTransport, {
     idCodec: {
       encodeVersion: () => membership.getCurrent()?.version ?? 0,
@@ -109,33 +111,39 @@ export const createWeavo = <TTarget = never>(
       onMissingVersion: (version) => membership.requestMembership(version),
     },
   });
-  membership = createMembership((message) => transport.send(message), {
-    clientId,
-    getPresence: () => ({
-      cursor: getLocalCursor?.() ?? 0,
-      name: presenceName,
-      color: presenceColor,
-    }),
-    getStateVector: () => Object.fromEntries(sv),
-    ...(options.foundingGraceMs !== undefined
-      ? { foundingGraceMs: options.foundingGraceMs }
-      : {}),
-    ...(options.initialMembers !== undefined
-      ? { initialMembers: options.initialMembers }
-      : {}),
-    ...(options.initialVersion !== undefined
-      ? { initialVersion: options.initialVersion }
-      : {}),
-    ...(options.heartbeatIntervalMs !== undefined
-      ? { heartbeatIntervalMs: options.heartbeatIntervalMs }
-      : {}),
-    ...(options.presenceTimeoutMs !== undefined
-      ? { presenceTimeoutMs: options.presenceTimeoutMs }
-      : {}),
-    ...(options.removalTimeoutMs !== undefined
-      ? { removalTimeoutMs: options.removalTimeoutMs }
-      : {}),
-  });
+  membership = createMembership(
+    (message) => {
+      if (message.type === "HEARTBEAT" && !link?.isOpen()) return;
+      transport.send(message);
+    },
+    {
+      clientId,
+      getPresence: () => ({
+        cursor: getLocalCursor?.() ?? 0,
+        name: presenceName,
+        color: presenceColor,
+      }),
+      getStateVector: () => Object.fromEntries(sv),
+      ...(options.foundingGraceMs !== undefined
+        ? { foundingGraceMs: options.foundingGraceMs }
+        : {}),
+      ...(options.initialMembers !== undefined
+        ? { initialMembers: options.initialMembers }
+        : {}),
+      ...(options.initialVersion !== undefined
+        ? { initialVersion: options.initialVersion }
+        : {}),
+      ...(options.heartbeatIntervalMs !== undefined
+        ? { heartbeatIntervalMs: options.heartbeatIntervalMs }
+        : {}),
+      ...(options.presenceTimeoutMs !== undefined
+        ? { presenceTimeoutMs: options.presenceTimeoutMs }
+        : {}),
+      ...(options.removalTimeoutMs !== undefined
+        ? { removalTimeoutMs: options.removalTimeoutMs }
+        : {}),
+    },
+  );
   const subscription = createSubscription();
   const remoteListeners = new Set<(change: RemoteChange) => void>();
   const gcTracker = createGCTracker();
@@ -207,7 +215,8 @@ export const createWeavo = <TTarget = never>(
     });
   };
 
-  manageTransport(transport, doc, sv, buffer, onApplied, membership);
+  link = manageTransport(transport, doc, sv, buffer, onApplied, membership);
+  const unsubWake = subscribeWake(() => link?.requestSync());
 
   const loadDocument = options.loadDocument ?? null;
 
@@ -269,6 +278,7 @@ export const createWeavo = <TTarget = never>(
     snapshot: (): DocumentSnapshot => takeSnapshot(doc, sv),
     disconnect: () => {
       closed = true;
+      unsubWake();
       if (started) membership.leave();
       transport.disconnect();
     },
