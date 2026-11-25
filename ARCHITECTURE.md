@@ -1,31 +1,31 @@
 # Weavo — Architecture & Design Notes
 
-Internal notes. Written as we figured things out, not as a product pitch.
+System-level notes: package boundaries, cross-package handoffs, and rules that span more than one package.
 
-Weavo started as “make a textarea collaborative.” It kept refusing to stay that small. The textarea is still the first adapter — but underneath it we’ve been stacking pieces that only make sense once you’ve hit the previous wall.
+- **Public API & usage** live in each package's `README.md` (shipped to npm).
+- **Package-internal mechanics** live in `packages/<name>/ARCHITECTURE.md` when the internals warrant it (`core`, `membership`, `textarea-adapter`, `monaco-adapter`, `telemetry`). Small packages (`sync`, `transport`, `client`) are covered by this file and their `README.md`.
 
-Rough roadmap (more “what the last problem forced” than a product plan):
+Rough roadmap (more "what the last problem forced" than a product plan):
 
 - **v1** — Collaborative text editing
-- **v2** — CRDT garbage collection (once we can trust who’s still alive)
-- **v3** — Higher-level collaborative primitives (shared objects, PromiseMirror, …)
+- **v2** — CRDT garbage collection (once we can trust who's still alive)
+- **v3** — Higher-level collaborative primitives (shared objects, ProseMirror, …)
 
 ---
 
 ## Package map
 
 ```
-@weavo/core
+@weavo/core               → packages/core/ARCHITECTURE.md
     ├─ YATA-style CRDT (node store)
-    ├─ Skip list (textarea index ↔ op id)
-    ├─ Operations & replicas
-    └─ Snapshots
+    ├─ Ranked skip list (editor index ↔ op id)
+    ├─ Operations, local input & snapshots
+    └─ Physical tombstone GC + origin-reference guard
 
 @weavo/sync
-    ├─ State vectors
-    ├─ Missing-op discovery
-    ├─ Dependency buffer
-    └─ State-vector operations
+    ├─ State vectors & missing-op discovery
+    ├─ Dependency + unresolved-membership buffer
+    └─ Cascade flush on op / membership arrival
 
 @weavo/transport
     ├─ Message types (op / sync / membership wire union)
@@ -33,335 +33,141 @@ Rough roadmap (more “what the last problem forced” than a product plan):
     ├─ shortId / UUID id codec (sync path)
     ├─ Binary membership subtype codec (UUID ids)
     ├─ Snapshot / delta persistence codec (UUID-stable)
-    └─ WebSocket implementation
+    └─ Reconnecting WebSocket `RawTransport`
 
-@weavo/membership
-    ├─ Membership table + versioned store (UUID ↔ shortId)
-    ├─ CASPaxos-style consensus (proposer / acceptor)
+@weavo/membership         → packages/membership/ARCHITECTURE.md
+    ├─ Deterministic sorted UUID ↔ shortId snapshots
+    ├─ Broadcast CASPaxos consensus (proposer / acceptor)
     ├─ JOIN_REQUEST → COMMIT → JOIN_RESPONSE join gate
-    ├─ Presence (LWW) + liveness (local-clock aging)
-    ├─ LEAVE / ungraceful remove on the same CASPaxos spine
+    ├─ Presence (LWW) + two-stage liveness
     └─ GC frontier (min of peer SVs from heartbeats)
 
 @weavo/client
     ├─ Document orchestration (replica, sync, transport, membership)
-    ├─ Membership join before ops / sync-request
+    ├─ Join gate + sync-response storm suppression
     ├─ IdCodec wired from membership into transport
-    ├─ Presence / identity / disconnect(LEAVE)
-    ├─ Tombstone GC on heartbeat (frontier + grace)
-    └─ Editor-agnostic adapter host (`applyLocal` / `onRemote`)
+    ├─ Tombstone GC scheduling on presence ticks
+    └─ Editor-agnostic `WeavoAdapterHost` + optional telemetry hook
 
-@weavo/textarea-adapter
-    ├─ Native textarea bind
-    ├─ Selection transform + IME composition
-    └─ Grapheme-aware deletes from the DOM
+@weavo/textarea-adapter   → packages/textarea-adapter/ARCHITECTURE.md
+    ├─ Native `<textarea>` bind & pre-input snapshot reconciliation
+    ├─ Grapheme-aware deletes & selection transforms
+    └─ IME composition isolation
 
-@weavo/monaco-adapter
-    ├─ Monaco model changes ↔ flat UTF-16 offsets
-    ├─ Multi-selection transform + IME composition
-    └─ Remote apply without local echo / undo pollution
+@weavo/monaco-adapter     → packages/monaco-adapter/ARCHITECTURE.md
+    ├─ Monaco model ↔ flat UTF-16 offset bridge
+    ├─ Multi-selection transform & echo-free remote edits
+    └─ IME composition isolation
+
+@weavo/telemetry          → packages/telemetry/ARCHITECTURE.md
+    ├─ Opt-in client & relay observability (zero runtime deps)
+    ├─ `RawTransport` byte/tag wrapper + semantic client hooks
+    └─ O(1) counters, pull gauges, fixed-bucket histograms & exporters
 
 apps/weavo-server
-    └─ Dumb relay — forwards frames, no protocol
+    └─ Dumb relay — forwards opaque frames per room, zero protocol state
 ```
 
-Rule we keep coming back to: each package owns one concern. If a change wants two packages rewritten for one idea, we drew the line wrong.
+Rule we keep coming back to: **each package owns one concern.** If a change wants two packages rewritten for one idea, we drew the line wrong.
 
 ---
 
-## First decision that wouldn’t die: dumb relay
+## First decision that wouldn't die: dumb relay
 
-We could have put brains in the server. Track ACKs, suppress storms, own the member list, store the doc. It would have been easier _once_.
+The relay (`apps/weavo-server`) only forwards opaque frames between sockets in the same room. No parsing ops, no document state, no membership coordinator. Correctness lives on the clients.
 
-Instead the relay only forwards opaque messages. No parsing ops, no document state, no membership. Correctness lives on the clients.
-
-That sounds stubborn until you try porting the same protocol to WebRTC mesh or some random bus and realize you don’t have to rewrite the interesting parts. The cost is real though — every problem below is a problem because the server won’t help.
+Porting the protocol to WebRTC mesh or another byte pipe means swapping `RawTransport` without touching CRDT, sync, or consensus logic. The cost is that every coordination problem — catch-up storms, wire compression, failure detection, GC — has to be solved peer-to-peer on a broadcast channel.
 
 ---
 
-## The document is two structures (and it has to be)
+## Cross-package handoffs
 
-Early on it felt like one CRDT list should be enough. Then we tried driving a textarea from it.
+### 1. Keystroke → wire → remote editor
 
-The textarea thinks in character indices. The CRDT thinks in operation ids (`leftOrigin` / `rightOrigin`). Mapping one to the other by walking the list is **O(n)** per lookup, and typing _is_ continuous lookups. That path melts.
+1. **Adapter (`textarea-adapter` / `monaco-adapter`)** captures a UTF-16 `{ start, end, value }` snapshot and calls `host.applyLocal(input, snapshot)`.
+2. **`@weavo/core`** (`onInput`) diffs the range into `delete` + `insert` CRDT operations, splices `NodeStore` and `SkipList`, and returns `{ op, index }[]`.
+3. **`@weavo/client`** advances the local `StateVector` (for inserts) and hands `{ type: "op", op }` to `Transport`.
+4. **`@weavo/transport`** encodes a `WIRE_VERSION = 3` binary frame, compressing known client UUIDs to 1–2 byte `shortId`s via `IdCodec` stamped with the current membership `version`.
+5. **Receiver `@weavo/transport`** decodes against that `version`. If the receiver hasn't committed `version` yet, unknown `shortId`s decode as placeholder `~<version>:<shortId>` client IDs and trigger `requestMembership(version)`.
+6. **`@weavo/sync` + `@weavo/client`** check `canApply`: ops missing causal origins or carrying `~<version>:<shortId>` park in `OperationBuffer`. Once origins or `MEMBERSHIP_RESPONSE` arrive, `flush` / `flushMembership` cascades ready ops into `apply(doc, op)`.
+7. **Adapter** receives `onRemote({ op, index, change, text })` and updates the UI while transforming local selections (or deferring DOM writes if an IME composition is active).
 
-So a replica is two views of the same document:
+### 2. Catch-up & `O(N²)` sync-response suppression
 
-| Structure      | Owns                                                         | Fast at                    |
-| -------------- | ------------------------------------------------------------ | -------------------------- |
-| **Node store** | Causal CRDT order (`leftOrigin` / `rightOrigin`, tombstones) | Merge, equality of history |
-| **Skip list**  | Visible character positions                                  | Map caret index ↔ op id    |
+On socket open (once joined) and tab wake, `@weavo/client` broadcasts `{ type: "sync-request", vector, clientId }`. If a peer's `sync-request` carries clocks ahead of ours (`isAhead`), we also schedule our own debounced `sync-request` so sync converges in both directions.
 
-Every `apply` updates both: splice the CRDT linked list, then splice the same id into the skip list at the derived index. The skip list is the bridge. Without it the UI fights the CRDT on every keystroke.
+With _N_ peers in a room, naive replies cause every up-to-date peer to dump the same catch-up history. `@weavo/client`'s responder suppresses duplicates without a server:
 
----
+1. Queue incoming `sync-request` `clientId`s and arm a single timer on the first useful request.
+2. Draw exponential delay inversely proportional to usefulness (`count = missingOps.length`):
+   ```
+   delay = -ln(U) / count     // U ~ Uniform(0, 1]
+   ```
+3. Winner broadcasts one batched `sync-response` covering `{ ops, clientIds: [...pending] }`.
+4. Peers overhearing a `sync-response` mark covered ops per requester and cancel their own timer once nothing uncovered remains.
 
-## Skip list details (the part that actually works)
+### 3. Why wire bloat forced `@weavo/membership`
 
-We needed:
+Every insert carries up to three `(clientId, clock)` pairs (`id`, `leftOrigin`, `rightOrigin`). In JSON, UUID strings ate ~40–50% of every single-character frame and turned multi-thousand-op `sync-response` payloads into megabyte stalls.
 
-- index → op id (local typing)
-- op id → index (remote apply, move caret, splice the DOM value)
+Binary framing + `shortId`s (`0 .. n-1`) fix that, **provided every peer maps `(version, shortId)` to the exact same UUID**. Any disagreement decodes ops under the wrong author and silently forks the CRDT.
 
-Expected **O(log n)** both ways, with **spans** at each level counting how many base nodes a forward jump covers — Redis-style ranking, not a textbook skip list that only searches by key.
+- Sync path (`op`, `sync-request`, `sync-response`): binary + `membershipVersion` + `shortId`s (UUID fallback pre-join).
+- Membership path (`JOIN_*`, `PREPARE`…`COMMIT`, `HEARTBEAT`): always full 16-byte UUIDs — these frames build the table.
+- Persistence path (`PERSIST_VERSION`): always full UUIDs — `shortId`s are room-version-local and must never hit disk.
 
-Other quirks we had to get right:
+See [`packages/membership/ARCHITECTURE.md`](packages/membership/ARCHITECTURE.md) for the CASPaxos state machine and quorum rules.
 
-- height drawn geometrically (`P = 0.5`, max 32)
-- ordered by **document position**, not operation id — ids live in `refCrdtKey` so we can jump back
-- deletes tombstone the CRDT node but _remove_ it from the skip list (visible length shrinks; history stays for concurrent inserts still pointing at that origin)
+### 4. Tombstone GC across three packages
 
----
+Deletes only set `tombstone = true` because concurrent inserts may still cite that node as `leftOrigin` / `rightOrigin`. Physical removal splits cleanly across three packages:
 
-## CRDT shape: RGA-ish, on purpose
+1. **`@weavo/membership`** piggybacks each peer's `StateVector` on `HEARTBEAT`s and computes `GCFrontier` — the per-author minimum clock across our live `sv` and all active presence peers.
+2. **`@weavo/client`** triggers `sweepGC` when presence updates move the frontier (or candidates await grace), enforcing a 30s grace window aligned with membership removal timeout.
+3. **`@weavo/core`** (`runGC`) unlinks eligible tombstones from `NodeStore` **only if no other node still references them as `leftOrigin` or `rightOrigin`**.
 
-Inserts look like:
+### 5. Observability without touching `WIRE_VERSION = 3`
 
-```
-id, value, leftOrigin, rightOrigin?
-```
+`@weavo/telemetry` stays strictly opt-in through two seams:
 
-“Put this character between these two known characters.” Concurrent inserts with the same left origin order by `compareOperationId` — clock first, then client UUID — so every replica lands on the same sibling order without a sequencer.
+- **Wire seam:** wraps `RawTransport` (`Uint8Array` frames) and inspects the leading frame/subtype tag bytes without double-decoding payloads.
+- **Semantic seam:** `@weavo/client` exposes an optional structural telemetry hook (push events for buffer/responder/GC/consensus transitions + pull getters for gauges). When omitted, `@weavo/client` pays zero bundle bytes and zero allocations.
 
-`ROOT` (`["ROOT", 0]`) is a local sentinel from `createReplica`. Never synced. First character ops hang off it as `leftOrigin`.
-
-Deletes set `tombstone = true`. Physically yanking the node out of the CRDT list breaks later concurrent ops that still cite that id. So history sticks around until something can prove it’s safe to drop — which is a later chapter.
-
----
-
-## Sync: state vectors, then the buffer, then the storm
-
-Once ops flow, peers need catch-up. State vectors (`Map<ClientId, clock>`) fell out naturally: diff two vectors, you know exactly which op ids the other side is missing.
-
-Then ops started arriving before their origins. Dependency buffer: park them in `waiting` / `buffered` until `canApply`, then `flush` cascades. Deletes wait on their target separately. Suddenly live sync stopped randomly wedging.
-
-Live path today: broadcast `{ type: "op", op }` as a binary frame. On open, send `{ type: "sync-request", vector, clientId }`.
-
-That last part looked fine with two peers. With _N_ peers joining at once, every peer with the missing ops answered, and we got an **O(N²)** response storm — same payload, many senders. The relay can’t suppress it (dumb on purpose). So we fixed it on the client:
-
-1. Queue incoming sync-request `clientId`s.
-2. First one arms a single timer; later ones only enqueue.
-3. Delay proportional to how useful you are:
-
-```
-delay = -ln(U) / missingOps.length     // U ~ Uniform(0,1)
-```
-
-Lots of missing ops → you answer sooner. Nothing useful → delay ≈ forever.
-
-4. Winner sends one `sync-response` with `{ ops, clientIds: [...queued] }`.
-5. Losers see a response that doesn’t list them → cancel their timer. Listed requesters apply the ops.
-
-There’s a load test under `packages/client/test/responseSuppression.load.test.ts` with hundreds of peers and one batched response. Same instinct shows up again in membership jitter: prefer math over a coordinator.
-
-Suppression fixed _who_ answers. It didn’t shrink _what_ they send. A late joiner still gets one `sync-response` packed with every missing op — and without short ids that payload is where UUID bloat stops being ambient keystroke tax and turns into a single heavy catch-up frame.
+We deliberately never add wall-clock send timestamps to `WIRE_VERSION = 3` op frames: 8 bytes per keystroke fights `shortId` compression, and cross-device clock skew makes one-way wall-clock latency bogus anyway.
 
 ---
 
-## Transport boundary
+## Two clocks, two jobs (and a third for durations)
 
-`@weavo/transport` is the only serialize/deserialize point. Core and sync stay on typed objects — typing is Map lookups and pointer walks, constantly. Frames are versioned binary (`WIRE_VERSION = 3`).
+Across real networks, device wall clocks drift. Mixing clocks causes bugs that two tabs on `localhost` never reproduce (e.g., heartbeats arriving "already expired" and flickering remote cursors out of existence).
 
-| Path                                         | Encoding                                                      | Client ids                                                                     |
-| -------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `op` / `sync-request` / `sync-response`      | Binary + membership version on the frame                      | `shortId` when the joined table knows them; else 16-byte UUID                  |
-| Membership (`JOIN_*`, `PREPARE`…`COMMIT`, …) | Binary subtype tags under `MSG_MEMBERSHIP`                    | Always full UUID — these frames _build_ the shortId table                      |
-| Persistence (snapshot + delta)               | Binary (`PERSIST_VERSION`), optional base64 for string stores | Always full UUID — shortIds are membership-version-local and must not hit disk |
+| Clock                     | Used for                                                     | Never used for                       |
+| ------------------------- | ------------------------------------------------------------ | ------------------------------------ |
+| Sender `Date.now()`       | Ordering one peer's own `HEARTBEAT` writes (LWW `timestamp`) | Aging silence on another machine     |
+| Receiver local clock      | Presence `receivedAt` eviction (~10s) & liveness `lastSeen`  | Comparing across different receivers |
+| Local `performance.now()` | Telemetry RTTs, buffer wait time, apply/GC durations         | Cross-machine one-way op latency     |
 
-UTF-8 on the wire is WTF-8 when needed: a CRDT node holds one UTF-16 code unit, so astral characters (emoji) can arrive as lone surrogates. `TextEncoder` would replace those with U+FFFD; the codec keeps them round-trippable instead.
-
-Decode never fails on a membership version we don't have. A shortId we can't map stays in the operation as `~<version>:<shortId>` and `requestMembership(version)` goes out. Resolution is the applier's job, not the codec's: `canApply` refuses any op still carrying one, `addToBuffer` parks it in `waiting` under that version, and when the table lands `flushMembership` swaps the shortIds for real client ids and applies whatever unblocks.
-
-Outbound membership messages are applied locally _before_ broadcast so a joiner’s immediate `sync-request` can decode against the version the sender just committed.
+Remote insert ops also nudge the author's caret locally (`membership.setCursor(author, index + 1)`) so carets don't lag typing between heartbeats. That nudge touches neither `timestamp` (sender remains LWW authority) nor `receivedAt` (an op is not a heartbeat).
 
 ---
 
-## Then we looked at the wire and saw UUIDs everywhere
-
-Here’s where membership actually came from.
-
-An op id is `(clientId, clock)`. `clientId` is a UUID. Every insert on the wire carries that id _and_ `leftOrigin` / `rightOrigin` — more `(clientId, clock)` pairs. Character-at-a-time editing means you’re shipping those UUIDs constantly, and under broadcast every peer pays for every frame.
-
-### How bad is it, roughly
-
-Before binary framing, a typical single-character JSON insert frame landed around **~170 bytes**. Of that, **~70+ characters were just UUID text** — often ~40% of the frame — before counting quotes, commas, and field names. A concurrent insert with three distinct ids (`id`, `leftOrigin`, `rightOrigin`) pushed past **~210 bytes**, with **three** 36-char UUIDs (~50% of the payload). One `(uuid, clock)` pair alone serialized to ~43 JSON characters; the same pair with a small integer client id was ~6.
-
-That’s for _one keystroke from one peer_. Typing is continuous:
-
-| Pace        | Chars / sec | UUID-form send (1 peer) | Same traffic, 5-peer room\*            |
-| ----------- | ----------- | ----------------------- | -------------------------------------- |
-| Casual      | ~4          | ~40 KB / min            | ~200 KB / min received across the room |
-| Fast typing | ~8          | ~80 KB / min            | ~400 KB / min                          |
-| Burst       | ~12         | ~125 KB / min           | ~600 KB / min                          |
-
-\*Broadcast: each frame is copied to everyone. Five peers don’t send 5× if only one is typing — but every listener still _receives_ the full fat op. Two people typing at once doubles the send side.
-
-The binary codec removes JSON field-name overhead and, once a peer is joined, swaps known client UUIDs for 1–2 byte `shortId`s against the frame’s membership version. Unmapped clients (and pre-join traffic) still fall back to full UUIDs.
-
-### Sync-response is where you _feel_ it
-
-Live ops dribble. A `sync-response` dumps history in one shot — every missing insert still carrying those UUIDs. Historical JSON sizes for a catch-up packed with single-character inserts (3 requester ids on the envelope; the ops are the bulk):
-
-| Missing ops | What that is roughly              | UUID-form response | shortId-form response | You don’t send |
-| ----------- | --------------------------------- | ------------------ | --------------------- | -------------- |
-| 200         | short paragraph of catch-up       | ~31 KB             | ~18 KB                | ~13 KB         |
-| 1 000       | ~3 min at casual pace             | ~153 KB            | ~88 KB                | ~65 KB         |
-| 3 000       | ~10 min at ~5 chars/s             | ~464 KB            | ~268 KB               | ~196 KB        |
-| 10 000      | long session / multi-peer backlog | ~1.5 MB            | ~0.9 MB               | ~0.65 MB       |
-
-Same ~40% cut as the live path, but applied to a frame that has to parse, allocate, and apply in a burst. Unbloated catch-up feels like “document appears”; bloated catch-up feels like the tab hitching while you decode hundreds of kilobytes of repeated UUID strings you already could have named `2`. And because the response is still broadcast, every peer in the room receives that brick even if only the late joiner needed it — which is exactly why suppression mattered, and why shortId compression on the sync path mattered next.
-
-So the next move felt obvious: stop putting full UUIDs on the hot path. Give each peer in the room a small integer (`shortId`), encode against that, done.
-
-Except the table has to be **identical** on every peer. If A thinks `shortId = 3` is Alice and B thinks it’s Bob, ops decode as the wrong replica and the CRDT quietly diverges. You can’t derive short ids locally and hope. You need a shared, versioned membership:
-
-1. Collect the client UUIDs in the room.
-2. Sort them (same order everywhere).
-3. Assign `shortId = index`.
-4. Bump a membership `version` on every join/leave.
-5. Encode ops against a specific version so decode knows which table to use.
-
-On one machine that’s a sorted array. On a broadcast mesh with no membership server, peers disagree about who joined, who left, and in what order — and any disagreement on the set is disagreement on short ids. That’s the wall. `@weavo/membership` is the attempt to climb it: consensus on the next membership snapshot _before_ anyone compresses against it.
-
-Presence, failure detection, GC frontiers — they all want “who’s in the room” too. Those showed up after. The thing that forced the package was UUID weight on every op.
-
----
-
-## Membership shape
-
-A membership is an immutable snapshot: sorted UUIDs → deterministic `shortId`s (`0 .. n-1`), plus a monotonic `version`. Older versions stick around in a store so in-flight ops encoded against them can still decode while the room moves forward.
-
-Joins/leaves don’t patch the live set. They propose the _next_ snapshot and commit it. Until commit, keep encoding with the previous version — full UUIDs still work, they’re just fat.
-
----
-
-## Consensus we can run over the same pipe
-
-Classic Paxos wants unicast and often a leader. We have broadcast and a dumb relay. So we run a CASPaxos-shaped flow on the same pipe everything else already uses:
-
-| Phase   | Messages              | Role                                                      |
-| ------- | --------------------- | --------------------------------------------------------- |
-| Prepare | `PREPARE` → `PROMISE` | Win promises; carry forward any previously accepted value |
-| Accept  | `ACCEPT` → `ACCEPTED` | Quorum accepts the (possibly carried) membership          |
-| Commit  | `COMMIT`              | Install the version; clear acceptor ballot state          |
-
-**Proposer** — `JOIN_REQUEST` lands, batch late joiners for a short window, wait rank × delay + jitter (lower rank goes first so we don’t all propose at once), then:
-
-1. bump epoch, broadcast `PREPARE`
-2. collect `PROMISE` to quorum
-3. carry-forward: if anyone already accepted a value for this slot, take the membership from the highest accepted ballot — don’t invent a conflicting one
-4. one `ACCEPT` (`acceptSent` so retries don’t double-fire)
-5. collect `ACCEPTED` to quorum → `COMMIT`, then proposer-only `JOIN_RESPONSE`
-6. prepare timeout → retry with a higher epoch; `cancel()` wipes in-flight state
-
-**Acceptor** — promise if the ballot is ≥ what you promised; same bar on accept; reply `ACCEPTED`; on `COMMIT`, write the store and clear ballot maps.
-
-Ballots are `(epoch, proposerId)`. Total order, no sequencer.
-
-`@weavo/client` waits on that join path: `JOIN_REQUEST` on open, ops and the first `sync-request` only after `isJoined` (via `COMMIT` / `JOIN_RESPONSE`, or solo founding after `foundingGraceMs`). After join, transport encodes ops/sync against the current membership version with `shortId`s; receivers look up historical tables by the version on the frame (and `requestMembership` if a version is missing).
-
----
-
-## Presence is not membership
-
-Presence is ephemeral: who is here right now, where their cursor is, what they call themselves. It is a last-write-wins map keyed by `clientId`. Every joined peer broadcasts a `HEARTBEAT` (default ~2s; the demo uses 750ms) carrying `{ cursor, name, color }`, plus piggybacked `membershipVersion` and `sv`. Receivers keep the entry with the higher **sender** `timestamp`. Miss ~10s of heartbeats (defaults; demo loosens this for WAN) and the peer drops out of the local presence map.
-
-Wrong presence for a beat is a flicker. Wrong membership is a permanently corrupted document. Different stakes, different tools — LWW eventual consistency here, CASPaxos on the member set.
-
-### Two clocks, two jobs
-
-The heartbeat’s `timestamp` is the sender’s wall clock. That is fine for LWW: you only ever compare one peer’s updates against that same peer’s earlier updates, so skew between machines does not matter.
-
-It is **not** fine for “how long since I last heard from them.” Stamping `lastSeen` / presence age with the sender’s clock and then aging it against ours means any skew past the presence timeout makes every heartbeat arrive already expired. On a second machine the peer gets added to presence and swept straight back out in the same handler — cursor flickers or never shows. Two tabs on one laptop hide the bug; 100 km of real devices do not.
-
-Rule we landed on:
-
-| Field / path          | Clock              | Job                                         |
-| --------------------- | ------------------ | ------------------------------------------- |
-| Heartbeat `timestamp` | Sender             | Order that peer’s own presence writes (LWW) |
-| Liveness `lastSeen`   | Local receive time | Suspect / remove after silence              |
-| Presence `receivedAt` | Local receive time | Evict stale UI entries                      |
-
-`weavo.onPresence` exposes `Map<clientId, { cursor, name, color }>`. Leave is the durable path: graceful `LEAVE` or silence past the removal timeout proposes `removeMember` on the same prepare → accept → commit spine.
-
-### Carets ride ops, not just heartbeats
-
-Refreshing cursors only on heartbeats makes a remote caret visibly trail the text it is typing — the character lands instantly, the caret catches up a heartbeat later. So the client also nudges presence on arrival: when an insert from peer `P` applies at index `i`, it calls `membership.setCursor(P, i + 1)` and listeners fire. The author is read off the op's own `id`, so this is the client package's job, not the app's.
-
-The nudge deliberately does **not** touch `timestamp` or `receivedAt`. LWW ordering stays the sender's story — `P`'s next heartbeat, with a higher timestamp, overwrites the guess — and an op is not treated as proof of liveness. Deletes carry the _target's_ id rather than the deleter's, so they cannot be attributed; those carets still wait for a heartbeat. Peers who are not the author also drift by the length of the change until their next heartbeat.
-
-One knock-on: presence listeners now fire per remote keystroke, and tombstone GC hangs off that same callback. So the client sweeps only when the frontier actually moved (or candidates are still pending grace) instead of walking every node on each op.
-
-Heartbeats are tiny (~40 B frames) but frequent. A two-peer demo session is a few messages per second and hundreds of bytes per second — not enough to create network latency. Perceived lag over distance is RTT through the relay and heartbeat cadence, not the bytes.
-
----
-
-## Leave is durable membership change
-
-Presence drops a silent peer from the UI after the presence timeout (default ~10s of **local** silence). Membership waits longer (default ~30s) before proposing removal — brief partitions should not rewrite the shortId table.
-
-**Graceful** — `weavo.disconnect()` broadcasts `LEAVE`, clears local presence, and peers propose `removeMember` immediately. No suspect window.
-
-**Ungraceful** — heartbeats stop → suspect at presence timeout (cursor gone) → propose remove at removal timeout → CASPaxos. A heartbeat before `COMMIT` cancels that removal (`revive`). After `COMMIT`, a returning peer sees it is absent and sends `JOIN_REQUEST`.
-
-Concurrent removals collide like concurrent joins: carry-forward picks one committed snapshot; the other defer to the next version. Quorum for a leave uses the post-removal size so a departing peer is not required to vote on its own exit.
-
----
-
-## Tombstone GC rides the same heartbeats
-
-Deletes only flip `tombstone = true`. The node stays in `store.nodes` so later ops can still use it as a `leftOrigin` / `rightOrigin` anchor. Physical deletion is only safe once **every active peer** has seen far enough into that author's history.
-
-Heartbeats already carry each peer's state vector. The GC frontier is the per-`clientId` minimum across live peers (and our own current SV):
-
-```
-frontier[alice] = min(our alice clock, …each presence peer's alice clock)
-```
-
-Any tombstone whose insert clock is `≤ frontier[author]` is _eligible_. We still wait a grace period (default 30s, aligned with removal timeout) before unlinking it from the CRDT list and dropping it from the map — covers in-flight ops from peers who are still in presence. A peer who went silent drops out of presence at the suspect timeout, which unblocks the frontier without a dedicated GC protocol.
-
-Two local guards on top of the design:
-
-1. **Never GC a tombstone still referenced** as someone else's `leftOrigin` / `rightOrigin` in _our_ store. Typing “ab” then deleting `a` leaves `b` pointing at `a`; removing `a` would break insert ancestry walks. Unreferenced tombstones (end of a deleted run) fall out over successive sweeps.
-2. **Self's presence entry is ignored** when computing the min — we always use the live SV so ops since the last heartbeat don't falsely hold the frontier back.
-
-Failure modes match presence: offline peer sticks the frontier until eviction; reconnect before removal re-enters the min; reconnect after membership remove is a fresh join (new shortId) and any stale-anchor ops land in the dependency buffer. Different peers may GC different prefixes; each run is locally safe and they converge.
-
----
-
-## Key design question
-
-For every new idea: **whose package?**
-
-| Idea                                    | Home                            |
-| --------------------------------------- | ------------------------------- |
-| Concurrent insert order                 | `@weavo/core`                   |
-| “I have clocks you don't”               | `@weavo/sync`                   |
-| Wire + persistence serialization        | `@weavo/transport`              |
-| Member set / shortId table / commit     | `@weavo/membership`             |
-| Presence / liveness heartbeats          | `@weavo/membership`             |
-| Local clock for silence, sender for LWW | `@weavo/membership`             |
-| GC frontier from heartbeat SVs          | `@weavo/membership`             |
-| Physical tombstone GC + grace           | `@weavo/core` + `@weavo/client` |
-| Forward bytes                           | relay                           |
-| DOM textarea + selection + IME          | `@weavo/textarea-adapter`       |
-| Monaco model + multi-selection + IME    | `@weavo/monaco-adapter`         |
-| WTF-8 for lone surrogates               | `@weavo/transport`              |
+## Key design question: whose package?
+
+| Idea                                            | Home                      | Deep dive                                                                                |
+| ----------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------- |
+| Causal insert order & skip-list index           | `@weavo/core`             | [`packages/core/ARCHITECTURE.md`](packages/core/ARCHITECTURE.md)                         |
+| State vectors & out-of-order op buffer          | `@weavo/sync`             | `packages/sync/README.md`                                                                |
+| Binary wire frames, WTF-8, persistence codec    | `@weavo/transport`        | `packages/transport/README.md`                                                           |
+| Member set, `shortId` table, CASPaxos, presence | `@weavo/membership`       | [`packages/membership/ARCHITECTURE.md`](packages/membership/ARCHITECTURE.md)             |
+| Orchestration, sync suppression, GC scheduling  | `@weavo/client`           | `packages/client/README.md`                                                              |
+| DOM `<textarea>` diffing, selection & IME       | `@weavo/textarea-adapter` | [`packages/textarea-adapter/ARCHITECTURE.md`](packages/textarea-adapter/ARCHITECTURE.md) |
+| Monaco offsets, multi-cursor & echo guard       | `@weavo/monaco-adapter`   | [`packages/monaco-adapter/ARCHITECTURE.md`](packages/monaco-adapter/ARCHITECTURE.md)     |
+| Counters, histograms, relay & client metrics    | `@weavo/telemetry`        | [`packages/telemetry/ARCHITECTURE.md`](packages/telemetry/ARCHITECTURE.md)               |
+| Forward opaque bytes per room                   | `apps/weavo-server`       | —                                                                                        |
 
 ---
 
 ## Still open
 
-- ~~Membership shortId table + lookups (`shortIdOf` / `clientIdOf`)~~
-- ~~Join gate in `@weavo/client` (`JOIN_REQUEST` → `JOIN_RESPONSE` / founding, ops+sync after `isJoined`)~~
-- ~~Flip the wire from UUID → shortId, and how membership version rides on each op~~
-- ~~Binary membership frames (UUID ids; no shortId on the consensus path)~~
-- ~~Binary snapshot / delta persistence codec (UUID-stable)~~
-- ~~Late joiners who missed a `COMMIT` (ops wait in the buffer until their membership version arrives)~~
-- ~~Leave / remove on the same prepare → accept → commit spine~~
-- ~~Heartbeats for presence / failure detection once the set is stable~~
-- ~~Age presence / liveness on local receive time (sender timestamp is LWW only)~~
-- ~~Tombstone GC once we can compute a frontier over live members (sv already rides on heartbeats)~~
-- Delete ops still lack their own clocks — frontier is insert-SV based; grace + unreferenced checks cover the live-delete race for now
-
-Each of those is probably another “oh, now we need…” — same pattern as how we got here.
+- Delete ops still lack their own clocks — GC frontier is insert-SV based; grace + unreferenced-origin checks cover the live-delete race for now.
+- Wire `@weavo/telemetry` hooks into `@weavo/client` and `apps/weavo-server` once the telemetry package implementation lands.
