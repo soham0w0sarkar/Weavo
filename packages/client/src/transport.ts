@@ -59,7 +59,6 @@ const isOpPresent = (store: NodeStore, op: Operation): boolean => {
 const opKey = (op: Operation) =>
   op.type === "insert" ? `i:${toKey(op.id)}` : `d:${toKey(op.target)}`;
 
-/** True when `theirs` holds an insert clock that `mine` has not reached. */
 const isAhead = (theirs: StateVector, mine: StateVector) => {
   for (const [clientId, clock] of theirs) {
     if (clock > (mine.get(clientId) ?? -1)) return true;
@@ -74,11 +73,6 @@ type PendingRequest = {
   covered: Set<string>;
 };
 
-/**
- * Answers sync-requests with suppression: one timer per peer, delay shrinks
- * with how much the peer has to offer, and a response from someone else
- * cancels only what it already covered.
- */
 const createResponder = (
   doc: Document,
   sv: StateVector,
