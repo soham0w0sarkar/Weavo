@@ -1,0 +1,47 @@
+{
+  "name": "@weavo/telemetry",
+  "version": "0.0.0",
+  "description": "Opt-in observability for Weavo clients and relays",
+  "keywords": [
+    "weavo",
+    "telemetry",
+    "metrics",
+    "observability",
+    "collaborative-editing"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soham0w0sarkar/Weavo.git",
+    "directory": "packages/telemetry"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup src/index.ts --format cjs,esm --dts"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "bun-types": "^1.3.9",
+    "tsup": "^8.5.1",
+    "typescript": "5.9.2"
+  }
+}

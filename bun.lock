@@ -151,6 +151,16 @@
         "typescript": "5.9.2",
       },
     },
+    "packages/telemetry": {
+      "name": "@weavo/telemetry",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@repo/typescript-config": "workspace:*",
+        "bun-types": "^1.3.9",
+        "tsup": "^8.5.1",
+        "typescript": "5.9.2",
+      },
+    },
     "packages/textarea-adapter": {
       "name": "@weavo/textarea-adapter",
       "version": "1.0.0",
@@ -502,6 +512,8 @@
     "@weavo/monaco-adapter": ["@weavo/monaco-adapter@workspace:packages/monaco-adapter"],
 
     "@weavo/sync": ["@weavo/sync@workspace:packages/sync"],
+
+    "@weavo/telemetry": ["@weavo/telemetry@workspace:packages/telemetry"],
 
     "@weavo/textarea-adapter": ["@weavo/textarea-adapter@workspace:packages/textarea-adapter"],
 
