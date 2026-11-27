@@ -14,5 +14,15 @@ export type {
   WeavoAdapter,
   WeavoAdapterHost,
 } from "./types";
+export { TELEMETRY_HOOK_VERSION } from "./telemetry";
+export type {
+  TelemetryCounterName,
+  TelemetryEventDetails,
+  TelemetryEventName,
+  TelemetryGaugeName,
+  TelemetryGauges,
+  TelemetryHistogramName,
+  WeavoTelemetryHook,
+} from "./telemetry";
 export type { DocumentSnapshot, Operation } from "@weavo/core";
 export type { PeerPresence } from "@weavo/membership";
