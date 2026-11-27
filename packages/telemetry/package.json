@@ -25,6 +25,12 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
       "default": "./dist/index.js"
+    },
+    "./relay": {
+      "types": "./dist/relay.d.ts",
+      "import": "./dist/relay.js",
+      "require": "./dist/relay.cjs",
+      "default": "./dist/relay.js"
     }
   },
   "files": [
@@ -35,8 +41,8 @@
     "access": "public"
   },
   "scripts": {
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts src/relay.ts --format cjs,esm --dts --watch",
+    "build": "tsup src/index.ts src/relay.ts --format cjs,esm --dts",
     "test": "bun test"
   },
   "devDependencies": {
