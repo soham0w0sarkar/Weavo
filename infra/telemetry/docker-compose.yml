@@ -1,0 +1,32 @@
+# Local telemetry stack for the demo app.
+#   docker compose -f infra/telemetry/docker-compose.yml up -d
+# The browser pushes to http://localhost:4318/v1/metrics (demo: ?telemetry=otel).
+# Grafana: http://localhost:3100 (admin / admin). Prometheus: http://localhost:9090.
+name: weavo-telemetry
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.118.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4318:4318"
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.5.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3100:3000"
