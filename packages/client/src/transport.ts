@@ -25,7 +25,11 @@ import {
   type Message,
   type Transport,
 } from "@weavo/transport";
-import { createTelemetry, type WeavoTelemetryHook } from "./telemetry";
+import {
+  createTelemetry,
+  isTelemetryAttached,
+  type WeavoTelemetryHook,
+} from "./telemetry";
 import type { OnApplied, TimerRef } from "./types";
 
 export const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
@@ -78,6 +82,7 @@ const createResponder = (
   doc: Document,
   sv: StateVector,
   transport: Transport,
+  telemetry: WeavoTelemetryHook,
 ) => {
   const pending = new Map<ClientId, PendingRequest>();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -113,6 +118,10 @@ const createResponder = (
       ops: [...ops.values()],
       clientIds,
     });
+    telemetry.event("sync.response_sent", {
+      ops: ops.size,
+      recipients: clientIds.length,
+    });
   };
 
   return {
@@ -138,7 +147,14 @@ const createResponder = (
         const request = pending.get(clientId);
         if (!request) continue;
         for (const key of keys) request.covered.add(key);
-        if (remainingFor(request).length === 0) pending.delete(clientId);
+
+        const needed = opsFor(request.vector);
+        if (needed.every((op) => request.covered.has(opKey(op)))) {
+          pending.delete(clientId);
+          if (needed.length > 0) {
+            telemetry.event("sync.suppressed", { coveredOps: needed.length });
+          }
+        }
       }
 
       if (pending.size === 0) clearTimer();
@@ -160,7 +176,9 @@ export const manageTransport = (
   membership: MembershipHandle,
   telemetry: WeavoTelemetryHook = createTelemetry(),
 ) => {
-  const responder = createResponder(doc, sv, transport);
+  const responder = createResponder(doc, sv, transport, telemetry);
+  const observing = isTelemetryAttached(telemetry);
+  let syncStartedAt: number | null = null;
   const requestTimer: TimerRef = { current: undefined };
   let open = false;
 
@@ -173,11 +191,22 @@ export const manageTransport = (
   const requestSync = () => {
     clearRequestTimer();
     if (!open || !membership.isJoined()) return;
+    if (observing) syncStartedAt = performance.now();
     transport.send({
       type: "sync-request",
       vector: sv,
       clientId: doc.clientId,
     });
+    telemetry.event("sync.request_sent", {});
+  };
+
+  const endSync = () => {
+    if (syncStartedAt === null) return;
+    telemetry.event("sync.end", {
+      outcome: "complete",
+      durationMs: performance.now() - syncStartedAt,
+    });
+    syncStartedAt = null;
   };
 
   const scheduleSyncRequest = () => {
@@ -215,6 +244,7 @@ export const manageTransport = (
 
   transport.onClose(() => {
     open = false;
+    syncStartedAt = null;
     clearRequestTimer();
     responder.reset();
   });
@@ -249,6 +279,7 @@ export const manageTransport = (
         responder.onResponse(message.clientIds, message.ops);
         if (message.clientIds.includes(doc.clientId)) {
           for (const op of message.ops) applyIncoming(op);
+          endSync();
         }
         break;
     }
