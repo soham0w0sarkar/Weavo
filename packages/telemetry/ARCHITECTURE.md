@@ -44,69 +44,133 @@ Because `@weavo/transport` frames start with `[WIRE_VERSION, msgTag, subtypeTag?
 - `bytesOut` / `bytesIn` and `framesOut` / `framesIn` partitioned by category (`op`, `sync_request`, `sync_response`, `membership_consensus`, `heartbeat`)
 - Socket `connectCount`, `disconnectCount`, and `disconnectedDurationMs`
 
-### Seam B — Semantic hook (`WeavoTelemetryHook` in `@weavo/client`)
+### Seam B — Semantic hook (`@weavo/client` → collector)
 
-Wrappers cannot see inside the CRDT replica, dependency buffer, or responder timer. `@weavo/client` exposes a tiny optional structural contract on `WeavoOptions`:
+Wrappers cannot see inside the CRDT replica, dependency buffer, or responder timer, so `@weavo/client` reports through a hook: an object with five members. The hook type (`WeavoTelemetryHook`) and every metric name live in `@weavo/client` as types only, so the client never depends on this package. This package imports those types.
+
+| Member                 | Use for                                                                                            | Allocates                          |
+| ---------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `version`              | A number the client checks before using the hook                                                   | nothing                            |
+| `count(name)`          | Per-op counters: `op.buffered:*`, `op.flushed`, `op.duplicate`. Name only.                         | nothing                            |
+| `event(name, details)` | Rare transitions: ends of joins, consensus rounds and syncs, retries, evictions, sweeps, anomalies | one small object, off the hot path |
+| `record(name, value)`  | Per-op numbers: `buffer.wait_ms` only                                                              | nothing                            |
+| `attach(gauges)`       | Called once at startup with the getters the client has (any subset)                                | nothing per call                   |
+
+Gauges are never pushed. The client builds the getters and the collector calls them when `snapshot()` runs. Until `attach()` runs, and for any gauge the client does not supply, the snapshot reports `0`. A getter that throws or returns a non-finite number also reads as `0`, so one bad gauge cannot break a snapshot.
+
+`createClientTelemetry()` returns `{ hook, snapshot }`. The collector can be driven by hand with no client at all: call `hook.count`, `hook.event` and `hook.record`, then read `snapshot()`. `test/clientTelemetry.test.ts` does exactly that.
+
+### Client-side helper
+
+Inside `@weavo/client` the hook is wrapped by `createTelemetry(hook?)` (`src/telemetry.ts`, internal, not exported from the package):
+
+- **No hook means no-op.** It returns a shared empty hook with `version: 0`, so call sites are uniform and never check for `undefined`.
+- **A different version means no-op.** `createTelemetry` compares `hook.version` with `TELEMETRY_HOOK_VERSION`. If they differ it logs one warning, does not attach, and uses the no-op.
+- **It never breaks editing.** Every call is wrapped in `try/catch` and a throw is swallowed.
+- **It gives up for good.** After 3 failures, counted across all five members together, it switches to the no-op and stops calling the hook.
+- **Allocation rule.** Hot paths call `count(name)` with a literal and nothing else. Only rare events build a details object.
+
+### Hook version
+
+`TELEMETRY_HOOK_VERSION` is one constant, defined next to the hook types in `@weavo/client` (`src/telemetry.ts`). This package never reads it at runtime. It pins the number it was written for in `src/client/version.ts`:
 
 ```ts
-export type WeavoTelemetryEvent =
-  | { type: "op.buffered"; reason: "causal" | "membership" }
-  | { type: "op.flushed"; count: number; waitMs?: number }
-  | { type: "op.duplicate" }
-  | { type: "sync.request_sent" }
-  | { type: "sync.response_sent"; ops: number; recipients: number }
-  | { type: "sync.suppressed"; coveredOps: number }
-  | { type: "gc.sweep"; removed: number; remainingCandidates: number }
-  | { type: "membership.join_start" }
-  | { type: "membership.joined"; durationMs: number; version: number }
-  | { type: "membership.prepare_retry"; epoch: number }
-  | {
-      type: "membership.peer_evicted";
-      reason: "suspect" | "expired" | "leave";
-    };
-
-export type WeavoInspector = {
-  getNodeCount: () => number;
-  getVisibleLength: () => number;
-  getBufferedCount: () => number;
-  getPeerCount: () => number;
-  getMembershipVersion: () => number;
-  isJoined: () => boolean;
-};
-
-export type WeavoTelemetryHook = {
-  attach?: (inspector: WeavoInspector) => (() => void) | void;
-  onEvent?: (event: WeavoTelemetryEvent) => void;
-};
+export const HOOK_VERSION = 1 satisfies typeof TELEMETRY_HOOK_VERSION;
 ```
 
-- **Push (`onEvent`)** fires only on state transitions and anomalies.
-- **Pull (`attach`)** evaluates `doc.store.nodes.size`, tombstone ratio (`nodeCount - 1 - visibleLength`), and buffer depth **lazily when `telemetry.snapshot()` runs** — never on the hot typing loop.
+The collector's hook carries `HOOK_VERSION` as `version`. If the client's constant moves on, this line stops compiling, so the collector cannot be rebuilt against a contract it was not written for. If a mismatched pair is installed anyway, the client's check turns telemetry off. Reading the client's constant at runtime instead would always match and the check would never fire.
+
+| Change                                            | Breaking | Version |
+| ------------------------------------------------- | -------- | ------- |
+| Rename or remove a name                           | yes      | bump    |
+| Change what a detail means                        | yes      | bump    |
+| Add a new name (counter, event, gauge, histogram) | no       | keep    |
+| Add a new value to a label (an outcome, a reason) | no       | keep    |
+
+Adding is only safe because the collector ignores names it does not know. `bumpCounter` and `recordSample` drop an unknown name instead of throwing or creating a `NaN` entry, so an older collector can run with a newer client. A removed counter or histogram would keep its value at zero, which is why removing is a bump.
 
 ---
 
-## 4. Clock discipline
+## 4. Counting rules
 
-Following the root `ARCHITECTURE.md` two-clock rule:
+One rule per metric kind, so nothing is counted twice.
 
-- **All durations use monotonic `performance.now()` on a single machine:**
-  - `joinLatencyMs`: `membership.join_start` → `membership.joined`
-  - `syncCatchupMs`: outbound `sync-request` → matching `sync-response` applied (or buffer drained to `0`)
-  - `bufferWaitMs`: op parked in `OperationBuffer` → flushed into `apply`
-- **Never compute `Date.now() - senderTimestamp` across peers.** If end-to-end relay RTT is needed, measure round-trip time on causal request/response pairs (`JOIN_REQUEST → JOIN_RESPONSE`, `sync-request → sync-response`).
+1. **An event bumps its own counter, automatically.** The collector increments the counter with the event's name, plus the detail when the counter has one (`join.end:timeout`, `sync.end:stalled`, `peer.evicted:suspect`, `transport.state:backoff`). The client never also calls `count()` for something it already sends as an event.
+2. **`count()` is only for hot counters.** `TelemetryCounterName` is the closed list the client may pass to `count()`: `op.buffered:*`, `op.flushed` and `op.duplicate`. Counters that need an amount, such as nodes removed by GC, are not hot counters; the amount rides on the event (`gc.sweep` carries `removed`). The compiler rejects an event name passed to `count()`.
+3. **Events are not stored.** They arrive, bump a counter, maybe feed a histogram, and are dropped. The snapshot has no event field.
+4. **The routing table is written once, in the collector.** See below. The client knows nothing about counters or histograms.
+5. **Every counter exists from the start.** `createCounters()` returns all names at `0`, and its return type is `Counters`, so adding a name to the union without adding it there is a compile error. A snapshot never has a missing key, so graphs have no gaps.
+6. **Detail values are numbers, booleans, or fixed words.** No free-form strings, so nothing in an event can carry an id or a name. `DetailsAreClosed` in `types.ts` fails to compile if any detail field is a plain `string`. `membership.fork` carries the version, a numeric fingerprint of each side's table, and each side's size: it says a fork exists, not who is in it.
+
+### Two state machines, two names
+
+- **Transport state** (`transport.state` event): `connecting | open | closed | backoff`. What the socket is doing.
+- **Client status** (`status.change` event): `connecting | joining | syncing | ready | reconnecting | disconnected`. The user-facing machine.
+
+They never share a name. How often each transition happened is the counter (`transport.state:open`, `status.change:ready`). What the state is right now is a gauge, one per state: `status.current:ready` is `1` when the client is ready and `0` otherwise, and the same for `transport.current:*`. Exactly one gauge in each family is `1`.
+
+### Why an op is buffered
+
+`op.buffered:<reason>` has three reasons, matching `@weavo/sync`:
+
+- `missing-origin`: an insert whose `leftOrigin` or `rightOrigin` has not arrived.
+- `missing-target`: a delete whose target insert has not arrived.
+- `missing-membership`: any op still carrying an unresolved shortId. This wins over the other two when both apply.
+
+### Where the buffer reports
+
+`@weavo/sync` has no idea telemetry exists. `createBuffer(observer?)` takes an optional `BufferObserver` with three members: `buffered(reason)`, `released(waitedMs)` and `duplicate()`. `@weavo/client` builds one from the hook (`src/bufferTelemetry.ts`) only when a hook is attached, mapping each reason to a literal counter name.
+
+- **`op.buffered:<reason>`** fires once, when an op first enters the buffer. An op that is re-placed while draining, or re-keyed after its membership version arrives, is not counted again.
+- **`op.flushed` and `buffer.wait_ms`** fire together when a buffered op is finally applied. The wait is `performance.now()` at release minus the timestamp taken when it was buffered. The timestamp survives a membership re-key.
+- **`op.duplicate`** fires from two places: the client when an arriving op is already in the document, and the buffer when an arriving op is already waiting in it.
+- **No hook, no cost.** With no observer the buffer takes no timestamps and `since` stays empty.
+- **Invariant.** `op.buffered:* - op.flushed` equals the `buffer.depth` gauge.
+- **Not counted:** ops replayed by `loadDocument` that are already present. They are not network duplicates.
+
+Gauges wired so far: `buffer.depth` (size of the buffered inserts plus pending deletes) and `doc.nodes` (size of the node store). Both are map-size lookups.
+
+### Routing table
+
+`EVENT_ROUTES` in `src/client/routes.ts` maps every event name to what the collector does with it:
+
+| Field       | Meaning                                                                 |
+| ----------- | ----------------------------------------------------------------------- |
+| `label`     | A string detail added to the counter name, as in `peer.evicted:suspect` |
+| `histogram` | Which histogram to feed, and from which numeric detail field            |
+
+```ts
+"join.end": {
+  label: "outcome",
+  histogram: { name: "membership.join_ms", field: "durationMs" },
+},
+"peer.evicted": { label: "reason" },
+"sync.chunk": {},
+```
+
+The table is checked against the contract at compile time. A missing event, a `label` that is not a string detail, or a `field` that is not a number is a build error. The counter-name union (`EventCounterName`) is derived from the table, so the counters and the table cannot disagree.
+
+`applyEvent` is the only code that reads the table. An unknown event name is ignored, an unknown label value bumps nothing, and a missing or non-numeric duration records no histogram sample.
+
+### End events carry the duration
+
+`join.end`, `consensus.end` and `sync.end` each carry `durationMs`, measured by the client with its own timer. There are no start events, so there is nothing to pair, nothing to leak, and no limit on open flows to enforce. The client takes one timestamp when a join, round or sync begins; these are rare, so the cost is negligible.
+
+Every outcome feeds the histogram, failures included. The counter label (`sync.end:timeout`) separates them. The OTel adapter can build a span afterwards from the end event, with its start set to now minus `durationMs`.
+
+`buffer.wait_ms` is per op, not per event, so it is fed by `record()`. The buffer remembers when each op was parked, but only while a collector is attached.
 
 ---
 
-## 5. O(1) metric primitives
+## 5. Clock discipline and metric primitives
 
-Every metric instance allocates fixed-size typed arrays at creation time:
+All durations use monotonic `performance.now()` on one machine. Never compute `Date.now() - senderTimestamp` across peers; measure round trips on request/response pairs instead.
 
-- **Counters:** monotonic `Float64` integers (`opsBuffered`, `opsDuplicate`, `syncSuppressed`, `gcRemovedNodes`, `bytesIn`, `bytesOut`, `prepareRetries`).
-- **Pull Gauges:** computed on `snapshot()` (`liveLength`, `tombstoneCount`, `bufferDepth`, `peerCount`, `isJoined`).
-- **Fixed-bucket Histograms:** `Uint32Array(bounds.length + 1)` + `sum` + `count` + `min` + `max`.
-  - Default latency bounds (ms): `[1, 5, 10, 25, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000]`
-  - Default byte/fan-out bounds (relay): `[64, 256, 1_024, 4_096, 16_384, 65_536, 262_144, 1_048_576]`
-  - Maps directly to Prometheus `_bucket{le="..."}` and OpenTelemetry explicit bucket histograms without retaining raw samples.
+- **Counters:** plain numbers keyed by the closed `CounterName` union.
+- **Gauges:** getters in internal state (`GaugeGetters`), plain numbers in the snapshot (`GaugeValues`). The client builds the getters and passes them to `attach()`. `doc.visible_length` reads the skip list's maintained `length`, never the rebuilt text, and `doc.tombstones` is `nodes - 1 - visible_length`, so both are O(1).
+- **Histograms:** internal state is `{ counts, sum, count }` with boundaries kept in one shared constant (`HISTOGRAM_BOUNDS`). The snapshot carries `bounds` next to `counts`. `createHistogramState` allocates `bounds.length + 1` slots; the last holds values above the largest bound. A value goes in the first slot whose bound it does not exceed. Counts are non-cumulative and only made cumulative when exporting to Prometheus `_bucket{le="..."}`. Negative and non-finite values are ignored.
+  - The event histograms (join, consensus, sync) use `1 ms` to `10 s` bounds.
+  - `buffer.wait_ms` uses finer low bounds, `0.5 ms` to `1 s` in powers of two, since most waits are a few milliseconds.
 
 ---
 
