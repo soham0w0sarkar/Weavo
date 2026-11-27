@@ -23,11 +23,13 @@ packages/telemetry/src/
 ├─ client/
 │  ├─ clientTelemetry.ts # implements WeavoTelemetryHook + snapshot/flush lifecycle
 │  └─ wrapTransport.ts   # RawTransport byte/tag inspector
+├─ relay.ts              # entry for "@weavo/telemetry/relay" (server only)
 ├─ relay/
-│  └─ relayTelemetry.ts  # connection, room fan-out, bufferedAmount & origin-reject metrics
+│  └─ relayTelemetry.ts  # connection, room fan-out, backpressure & origin-reject metrics
 └─ exporters/
-   ├─ prometheus.ts      # Prometheus text exposition serializer (0.0.4)
-   ├─ otel.ts            # structural adapter for @opentelemetry/api MeterLike
+   ├─ families.ts        # shared MetricFamily model and histogram bucket samples
+   ├─ prometheus.ts      # Prometheus text exposition serializer (0.0.4) + client snapshot mapping
+   ├─ otel.ts            # structural adapter for an OpenTelemetry MeterLike
    └─ console.ts         # structured dev logger
 ```
 
@@ -130,6 +132,22 @@ They never share a name. How often each transition happened is the counter (`tra
 
 Gauges wired so far: `buffer.depth` (size of the buffered inserts plus pending deletes) and `doc.nodes` (size of the node store). Both are map-size lookups.
 
+### Sync events
+
+These fire from `manageTransport` in `@weavo/client`. The collector needs no new code: the routing table already maps each one.
+
+| Event                | Fires when                                                                                 | Details             |
+| -------------------- | ------------------------------------------------------------------------------------------ | ------------------- |
+| `sync.request_sent`  | A `sync-request` is actually sent (the socket is open and the client has joined)           | none                |
+| `sync.response_sent` | This client sends a `sync-response` after its random delay                                 | `ops`, `recipients` |
+| `sync.suppressed`    | A response we planned is dropped because a peer's response already covered every op needed | `coveredOps`        |
+| `sync.end:complete`  | A response addressed to this client arrived and was applied                                | `durationMs`        |
+
+- **One response is the signal.** The protocol has no message for "nothing to send", so a request that finds nothing missing gets no reply. Because of that, only `complete` is reported. `timeout`, `cancelled`, `stalled` and `failed` are in the contract but are not emitted, since a lost reply and an up-to-date peer look the same.
+- **Duration is per request.** The clock restarts on every request sent, so an unanswered request never inflates a later catch-up. It is reset when the transport closes, so offline time is never counted.
+- **`sync.catchup_ms` therefore means** the time from the latest request to the response that carried data, not the time to be fully in sync.
+- **Suppression is per requester.** Each planned response that is cancelled counts once, with the number of ops that made it unnecessary. A request that was already empty is not counted.
+
 ### Routing table
 
 `EVENT_ROUTES` in `src/client/routes.ts` maps every event name to what the collector does with it:
@@ -188,5 +206,17 @@ Instead, `createRelayTelemetry()` tracks global aggregates and distributions:
 - `weavo_relay_rooms_active` (gauge) & `weavo_relay_room_peers` (histogram of room sizes on scrape)
 - `weavo_relay_messages_in_total`, `weavo_relay_messages_fanned_out_total`, `weavo_relay_bytes_in_total`, `weavo_relay_bytes_out_total`
 - `weavo_relay_fanout_recipients` (histogram per broadcast)
-- `weavo_relay_socket_buffered_bytes` (histogram + counter of frames sent while `peer.bufferedAmount > backpressureWarnBytes`, catching slow-consumer memory buildup)
+- `weavo_relay_backpressured_frames_total` (counter of frames sent while `peer.bufferedAmount > backpressureWarnBytes`, catching slow-consumer memory buildup). A per-socket buffered-bytes histogram is deferred until the Bun websocket buffered-amount API is verified.
 - `weavo_relay_rejected_upgrades_total` (counter, fixed enum `reason="origin" | "method"` only)
+
+---
+
+## 7. Exporters
+
+Every exporter reads one shared model, `MetricFamily[]`, so Prometheus and OpenTelemetry cannot drift apart.
+
+- **Prometheus** (`formatPrometheus`): text format 0.0.4. Writes `HELP` and `TYPE` per family, escapes label values, and writes `+Inf` for the last bucket.
+- **Client mapping** (`clientFamilies`): counters become `weavo_client_<base>_total`, with the detail as a label (`op.buffered:missing-origin` becomes `reason="missing-origin"`). Gauges keep their names, and the `status.current:*` and `transport.current:*` families are one-hot with a `status` or `transport` label. Histograms become `_bucket{le}`, `_sum` and `_count`.
+- **OpenTelemetry** (`bindOtel`): registers one observable instrument per sample name, using a structural `MeterLike`, so `@opentelemetry/api` is not imported. Callbacks read the current families on each collection. Histogram buckets are sent as observable counters with an `le` attribute, because OTel's histogram instrument cannot take pre-accumulated bucket counts.
+
+Client numbers reach a backend by push, not scrape, because browsers have no address to scrape. `startOtlpPush(source, { url })` posts the snapshot as OTLP/HTTP JSON every 5 s. Counters and histograms are cumulative, and each page load gets its own `service.instance.id`. A push that fails is dropped, and the next one carries the full state. The local stack lives in `infra/telemetry`: an OpenTelemetry Collector receives the push, Prometheus scrapes the collector, and Grafana shows the `Weavo client` dashboard. The demo enables the push with `?telemetry=otel`. Telemetry starts when a room is opened.
