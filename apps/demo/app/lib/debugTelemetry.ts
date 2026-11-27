@@ -1,5 +1,10 @@
 import type { WeavoTelemetryHook } from "@weavo/client";
-import { createClientTelemetry, startConsoleExporter } from "@weavo/telemetry";
+import {
+  createClientTelemetry,
+  roomLabel,
+  startConsoleExporter,
+  startOtlpPush,
+} from "@weavo/telemetry";
 import {
   createWebSocketTransport,
   MSG_MEMBERSHIP,
@@ -7,6 +12,9 @@ import {
 } from "@weavo/transport";
 
 const PRINT_EVERY_MS = 3_000;
+/** Local OpenTelemetry Collector from infra/telemetry. */
+const OTLP_URL = "http://localhost:4318/v1/metrics";
+const PUSH_EVERY_MS = 5_000;
 
 /**
  * Each incoming op or sync frame waits a random 0..maxMs, so later frames can
@@ -35,7 +43,9 @@ export type DebugSession = {
 
 /**
  * Debug switches read from the page url:
- *   ?telemetry   collect metrics and print them to the console every 3 s
+ *   ?telemetry       collect metrics and print them to the console every 3 s
+ *   ?telemetry=otel  collect metrics and push them to the local collector,
+ *                    tagged with a hashed room label (logged on start)
  *   ?delay=400   hold each incoming op frame for a random 0..400 ms
  * With neither, this is a pass-through.
  */
@@ -47,13 +57,25 @@ export const createDebugSession = (weavoUrl: string): DebugSession => {
       ? delayIncoming(createWebSocketTransport(weavoUrl), delayMs)
       : weavoUrl;
 
-  if (!params.has("telemetry")) return { connection, stop: () => {} };
+  const mode = params.get("telemetry");
+  if (mode === null) return { connection, stop: () => {} };
 
   const collector = createClientTelemetry();
   Object.assign(window, { __weavoTelemetry: collector });
-  const stop = startConsoleExporter(collector, {
-    intervalMs: PRINT_EVERY_MS,
-    log: (text) => console.log(`[weavo telemetry]\n${text}`),
-  });
+  const room = new URL(weavoUrl).searchParams.get("room") || undefined;
+  if (room !== undefined) {
+    console.info(`[weavo telemetry] room label ${roomLabel(room)}`);
+  }
+  const stop =
+    mode === "otel"
+      ? startOtlpPush(collector, {
+          url: OTLP_URL,
+          intervalMs: PUSH_EVERY_MS,
+          ...(room === undefined ? {} : { room }),
+        })
+      : startConsoleExporter(collector, {
+          intervalMs: PRINT_EVERY_MS,
+          log: (text) => console.log(`[weavo telemetry]\n${text}`),
+        });
   return { connection, telemetry: collector.hook, stop };
 };
