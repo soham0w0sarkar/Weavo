@@ -1,5 +1,6 @@
 import { generateClientId, type ClientId } from "@weavo/core";
 import { createWeavo, type Weavo } from "../../src/Document";
+import type { WeavoTelemetryHook } from "../../src/telemetry";
 import { textareaAdapter } from "../../../textarea-adapter/src";
 import { MemoryRoom, type MemoryTransport } from "./memoryTransport";
 
@@ -250,6 +251,7 @@ export const createPeer = async (
     clientId?: ClientId;
     members?: ClientId[];
     heartbeatIntervalMs?: number;
+    telemetry?: WeavoTelemetryHook;
   } = {},
 ): Promise<Peer> => {
   const clientId = options.clientId ?? generateClientId();
@@ -259,6 +261,7 @@ export const createPeer = async (
     clientId,
     initialMembers: options.members ?? [clientId],
     heartbeatIntervalMs: options.heartbeatIntervalMs ?? 0,
+    ...(options.telemetry ? { telemetry: options.telemetry } : {}),
   });
   const el = createTextarea();
   const unbind = weavo.bind(el);

@@ -17,14 +17,25 @@ import {
   getClientId,
   type MembershipHandle,
 } from "@weavo/membership";
-import { createBuffer, update, type StateVector } from "@weavo/sync";
+import {
+  bufferSize,
+  createBuffer,
+  update,
+  type StateVector,
+} from "@weavo/sync";
 import {
   createTransport,
   createWebSocketTransport,
   type RawTransport,
 } from "@weavo/transport";
+import { createBufferObserver } from "./bufferTelemetry";
 import { mergeRoomDocument } from "./roomDocument";
 import { createSubscription } from "./Subscription";
+import {
+  createTelemetry,
+  isTelemetryAttached,
+  type WeavoTelemetryHook,
+} from "./telemetry";
 import { toTextChange } from "./textChange";
 import { manageTransport } from "./transport";
 import { subscribeWake } from "./wake";
@@ -63,6 +74,11 @@ export type WeavoOptions<TTarget = never> = {
         delta?: Operation[];
       } | null>)
     | null;
+  /**
+   * Opt-in metrics hook, for example from `@weavo/telemetry`. Experimental: the
+   * hook is ignored if its version does not match this client.
+   */
+  telemetry?: WeavoTelemetryHook;
 };
 
 const colorFromId = (clientId: ClientId): string => {
@@ -85,7 +101,12 @@ export const createWeavo = <TTarget = never>(
   const clientId = options.clientId ?? generateClientId();
   const doc = restored?.doc ?? createReplica(clientId);
   const sv: StateVector = restored?.stateVector ?? new Map();
-  const buffer = createBuffer();
+  const telemetry = createTelemetry(options.telemetry);
+  const buffer = createBuffer(
+    isTelemetryAttached(telemetry)
+      ? createBufferObserver(telemetry)
+      : undefined,
+  );
   const rawTransport =
     typeof urlOrTransport === "string"
       ? createWebSocketTransport(urlOrTransport)
@@ -215,7 +236,20 @@ export const createWeavo = <TTarget = never>(
     });
   };
 
-  link = manageTransport(transport, doc, sv, buffer, onApplied, membership);
+  telemetry.attach({
+    "buffer.depth": () => bufferSize(buffer),
+    "doc.nodes": () => doc.store.nodes.size,
+  });
+
+  link = manageTransport(
+    transport,
+    doc,
+    sv,
+    buffer,
+    onApplied,
+    membership,
+    telemetry,
+  );
   const unsubWake = subscribeWake(() => link?.requestSync());
 
   const loadDocument = options.loadDocument ?? null;

@@ -25,6 +25,7 @@ import {
   type Message,
   type Transport,
 } from "@weavo/transport";
+import { createTelemetry, type WeavoTelemetryHook } from "./telemetry";
 import type { OnApplied, TimerRef } from "./types";
 
 export const nodesToOp = (nd: NodeStore, ops: OperationId[]): Operation[] => {
@@ -157,6 +158,7 @@ export const manageTransport = (
   buffer: OperationBuffer,
   onApplied: OnApplied,
   membership: MembershipHandle,
+  telemetry: WeavoTelemetryHook = createTelemetry(),
 ) => {
   const responder = createResponder(doc, sv, transport);
   const requestTimer: TimerRef = { current: undefined };
@@ -184,7 +186,10 @@ export const manageTransport = (
   };
 
   const applyIncoming = (op: Operation) => {
-    if (isOpPresent(doc.store, op)) return;
+    if (isOpPresent(doc.store, op)) {
+      telemetry.count("op.duplicate");
+      return;
+    }
 
     if (!canApply(doc, op)) {
       addToBuffer(buffer, doc, op);
