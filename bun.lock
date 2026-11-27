@@ -19,6 +19,7 @@
         "@monaco-editor/react": "^4.7.0",
         "@weavo/client": "workspace:*",
         "@weavo/monaco-adapter": "workspace:*",
+        "@weavo/telemetry": "workspace:*",
         "@weavo/textarea-adapter": "workspace:*",
         "@weavo/transport": "workspace:*",
         "monaco-editor": "^0.56.0",

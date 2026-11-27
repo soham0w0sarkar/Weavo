@@ -14,6 +14,7 @@ import {
   loadClientStorage,
   saveClientSnapshot,
 } from "./lib/clientStorage";
+import { createDebugSession } from "./lib/debugTelemetry";
 
 const CHECKPOINT_EVERY_OPS = 50;
 const HEARTBEAT_MS = 750;
@@ -82,8 +83,10 @@ export const useWeavoEditor = <TTarget>({
     let opsSinceCheckpoint = 0;
     let closed = false;
 
-    const weavo = createWeavo(weavoUrl, {
+    const debug = createDebugSession(weavoUrl);
+    const weavo = createWeavo(debug.connection, {
       adapter,
+      telemetry: debug.telemetry,
       clientId,
       name: displayName,
       color: displayColor,
@@ -117,6 +120,7 @@ export const useWeavoEditor = <TTarget>({
       if (closed) return;
       checkpoint();
       closed = true;
+      debug.stop();
       weavoRef.current = null;
       weavo.disconnect();
     };

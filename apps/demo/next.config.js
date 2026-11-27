@@ -21,6 +21,7 @@ const nextConfig = {
     "@weavo/monaco-adapter",
     "@weavo/membership",
     "@weavo/sync",
+    "@weavo/telemetry",
     "@weavo/textarea-adapter",
     "@weavo/transport",
   ],
