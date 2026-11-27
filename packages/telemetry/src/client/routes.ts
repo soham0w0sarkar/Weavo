@@ -91,3 +91,9 @@ export const applyEvent = (
     }
   }
 };
+
+/** The label key for a counter base name (`join.end` gives `outcome`), if it has one. */
+export const counterLabelKey = (base: string): string | undefined =>
+  Object.hasOwn(EVENT_ROUTES, base)
+    ? (EVENT_ROUTES as Record<string, LooseRoute>)[base]!.label
+    : undefined;
