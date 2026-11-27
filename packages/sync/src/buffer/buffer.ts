@@ -7,7 +7,12 @@ import {
   type AppliedOp,
   apply,
 } from "@weavo/core";
-import type { MembershipVersions, OperationBuffer } from "./types";
+import type {
+  BufferObserver,
+  BufferReason,
+  MembershipVersions,
+  OperationBuffer,
+} from "./types";
 import {
   membershipKey,
   membershipKeyVersion,
@@ -15,11 +20,46 @@ import {
   resolveOperation,
 } from "./unresolved";
 
-export const createBuffer = (): OperationBuffer => ({
+export const createBuffer = (observer?: BufferObserver): OperationBuffer => ({
   waiting: new Map(),
   buffered: new Map(),
   pendingDeletes: new Map(),
+  observer: observer ?? null,
+  since: new Map(),
 });
+
+export const bufferSize = (buffer: OperationBuffer): number =>
+  buffer.buffered.size + buffer.pendingDeletes.size;
+
+const entryKey = (op: Operation): string =>
+  op.type === "delete" ? `d:${toKey(op.target)}` : `i:${toKey(op.id)}`;
+
+const isBuffered = (buffer: OperationBuffer, op: Operation): boolean =>
+  op.type === "delete"
+    ? buffer.pendingDeletes.has(toKey(op.target))
+    : buffer.buffered.has(toKey(op.id));
+
+const reasonFor = (op: Operation): BufferReason => {
+  if (pendingMembershipVersion(op) !== null) return "missing-membership";
+  return op.type === "delete" ? "missing-target" : "missing-origin";
+};
+
+const takeSince = (buffer: OperationBuffer, op: Operation) => {
+  if (!buffer.observer) return undefined;
+  const key = entryKey(op);
+  const since = buffer.since.get(key);
+  buffer.since.delete(key);
+  return since;
+};
+
+const release = (buffer: OperationBuffer, op: Operation) => {
+  if (!buffer.observer) return;
+  const key = entryKey(op);
+  const since = buffer.since.get(key);
+  if (since === undefined) return;
+  buffer.since.delete(key);
+  buffer.observer.released(performance.now() - since);
+};
 
 const getMissingDeps = (doc: Document, op: Operation): OperationKey[] => {
   const missing = [];
@@ -49,6 +89,24 @@ export const addToBuffer = (
   doc: Document,
   op: Operation,
 ) => {
+  const { observer } = buffer;
+  if (!observer) {
+    place(buffer, doc, op);
+    return;
+  }
+
+  if (isBuffered(buffer, op)) {
+    place(buffer, doc, op);
+    observer.duplicate();
+    return;
+  }
+
+  place(buffer, doc, op);
+  buffer.since.set(entryKey(op), performance.now());
+  observer.buffered(reasonFor(op));
+};
+
+const place = (buffer: OperationBuffer, doc: Document, op: Operation) => {
   const version = pendingMembershipVersion(op);
   if (version !== null) {
     remember(buffer, op);
@@ -72,6 +130,7 @@ export const flush = (
   unblockedKey: Operation,
 ): AppliedOp[] => {
   if (unblockedKey.type === "delete") {
+    release(buffer, unblockedKey);
     buffer.pendingDeletes.delete(toKey(unblockedKey.target));
     return [];
   }
@@ -95,11 +154,13 @@ export const flushMembership = (
     buffer.waiting.delete(key);
 
     for (const op of ops) {
+      const since = takeSince(buffer, op);
       forget(buffer, op);
       const resolved = resolveOperation(op, membership);
+      if (since !== undefined) buffer.since.set(entryKey(resolved), since);
 
       if (pendingMembershipVersion(resolved) !== null) {
-        addToBuffer(buffer, doc, resolved);
+        place(buffer, doc, resolved);
         continue;
       }
       unblocked.push(resolved);
@@ -120,12 +181,13 @@ const drain = (
     const op = queue.shift()!;
 
     if (!canApply(doc, op)) {
-      addToBuffer(buffer, doc, op);
+      place(buffer, doc, op);
       continue;
     }
 
     const index = apply(doc, op);
     forget(buffer, op);
+    release(buffer, op);
     operations.push({ op, index });
 
     if (op.type === "insert") {

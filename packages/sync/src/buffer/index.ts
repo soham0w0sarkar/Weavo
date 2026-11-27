@@ -1,4 +1,5 @@
 export {
+  bufferSize,
   createBuffer,
   addToBuffer,
   flush,
@@ -13,6 +14,8 @@ export {
   unresolvedClientId,
 } from "./unresolved";
 export type {
+  BufferObserver,
+  BufferReason,
   OperationBuffer,
   OperationKey,
   Operation,
